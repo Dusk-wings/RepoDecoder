@@ -1,0 +1,16 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+/experiments/data*
+/experiments/repo
+
+# experiments pandoc not required
+pandoc-3.10.2-1-amd64.deb
