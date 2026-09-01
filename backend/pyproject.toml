@@ -4,7 +4,12 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "fastembed>=0.8.0",
+    "pgvector>=0.5.0",
+    "sqlalchemy>=2.0.52",
+]
 
 [dependency-groups]
 dev = [
