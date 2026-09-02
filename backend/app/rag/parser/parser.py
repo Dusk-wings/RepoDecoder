@@ -27,6 +27,10 @@ class Parser:
     def _set_file_path(self, file_path: Path) -> None:
         self.file_path = file_path
         self.language = self.extension_to_language_name()
+        if self.language == "tsx":
+            self.language = "typescript"
+        if self.language == "jsx":
+            self.language = "javascript"
 
     def extension_to_language_name(self, get_full_name: bool = False) -> str:
         try:
