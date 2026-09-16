@@ -1,14 +1,17 @@
-from core.db import Base
+from app.core.db import Base
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy import Text, UUID, String, DateTime, func, Enum as SQLEnum
+from sqlalchemy import Text, UUID, String, DateTime, func, Enum as SQLEnum, JSON
 from enum import Enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 import uuid
 
 if TYPE_CHECKING:
-    from models.repo_file import RepoFile
-    from models.embedding import Embedding
+    from app.models.repo_file import RepoFile
+    from app.models.embedding import Embedding
+    from app.models.ingest_logs import IngestLogs
+    from app.models.dependencies import Dependencies
+    from app.models.repo_dep_details import RepoDepDetails
 
 
 class RepoStatus(str, Enum):
@@ -25,9 +28,23 @@ class Repository(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    repo_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    repo_name: Mapped[str] = mapped_column(String(110), nullable=False)
+    repo_full_name: Mapped[str] = mapped_column(String(210), nullable=False, unique=True)
 
     repo_url: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    repo_created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    license: Mapped[dict] = mapped_column(JSON, nullable=True)
+
+    owner: Mapped[str] = mapped_column(String(100), nullable=False)
+    owner_url: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # fork: Mapped[bool] = mapped_column(nullable=False, default=False)
+    # forked_from: Mapped[str] = mapped_column(Text, nullable=True)
+
     status: Mapped[str] = mapped_column(
         SQLEnum(RepoStatus, name="status_enum"),
         nullable=False,
@@ -44,4 +61,15 @@ class Repository(Base):
     )
     file_chunks: Mapped[list["Embedding"]] = relationship(
         "Embedding", back_populates="repo", cascade="all, delete-orphan"
+    )
+
+    repo_ingest_log: Mapped[list["IngestLogs"]] = relationship(
+        "IngestLogs", back_populates="repository", cascade="all, delete-orphan"
+    )
+    repo_dep: Mapped[list["Dependencies"]] = relationship(
+        "Dependencies", back_populates="repository", cascade="all, delete-orphan"
+    )
+
+    dep_details: Mapped[list["RepoDepDetails"]] = relationship(
+        "RepoDepDetails", back_populates="file", cascade="all, delete-orphan"
     )

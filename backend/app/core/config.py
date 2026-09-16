@@ -8,7 +8,7 @@ ENV_FILE_PATH = BASE_DIR / ".env"
 class Settings(BaseSettings):
     DATABASE_URL: str | None = None
     JWT_SECRET: str | None = None
-    ALLOWED_ORIGIN: list[str] = []
+    ALLOWED_ORIGIN: str | None =  None
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE_PATH, env_file_encoding="utf-8", extra="ignore"

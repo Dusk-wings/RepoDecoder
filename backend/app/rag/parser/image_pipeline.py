@@ -23,7 +23,7 @@ class VisionFilePipeline:
         random_num = random.randint(1000, 9999)
         return f"{base_name}_{time_ms}_{random_num}.{ext}"
 
-    def _vission_LLM(self, image_url):
+    def _vission_LLM(self, image_url: str, internal_url: bool = False):
         """
         Placeholder for your Vision LLM function.
         It should take an image URL and return a text description.

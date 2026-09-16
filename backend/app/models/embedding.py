@@ -1,6 +1,6 @@
 from core.db import Base
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy import Text, UUID, DateTime, ForeignKey, func
+from sqlalchemy import Text, UUID, DateTime, ForeignKey, func, JSON
 from pgvector.sqlalchemy import Vector
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -26,7 +26,8 @@ class Embedding(Base):
         UUID, ForeignKey("repository.repo_id"), nullable=False
     )
 
-    chunk: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk: Mapped[dict] = mapped_column(JSON, nullable=False)
+    chunk_str: Mapped[str] = mapped_column(Text, nullable=False)
     vector: Mapped[list[float]] = mapped_column(Vector(384), nullable=False)
 
     created_on: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

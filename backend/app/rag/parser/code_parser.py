@@ -1,5 +1,9 @@
-from parser import Parser
+from rag.parser.parser import Parser
 from tree_sitter import Node
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 CHUNK_NODE_TYPES = {
     "python": {
@@ -63,12 +67,10 @@ class CodeParser(Parser):
     def _is_significant_variable(
         self, name: str | None, value_node: Node | None, include_all_globals: bool
     ) -> bool:
-        print(include_all_globals)
         """Check if variable should be extracted. Set include_all_globals=True to retain all global vars."""
         if not name:
             return False
         if include_all_globals:
-            print(f"include_all_globals is True, including variable: {name}")
             return True
         if name.isupper():  # CONSTANT_CASE
             return True
@@ -116,7 +118,7 @@ class CodeParser(Parser):
         if not self.language:
             raise ValueError("Language needed to be defined")
 
-        kind = CHUNK_NODE_TYPES[self.language].get(node_type)
+        kind = CHUNK_NODE_TYPES.get(self.language, {}).get(node_type)
         # print("Kind:    ", kind)
         # Go's type_declaration covers both struct and interface -- disambiguate
         if (
@@ -156,16 +158,24 @@ class CodeParser(Parser):
 
     def extract_chunks(
         self,
-        node: Node,
-        source_bytes: bytes,
+        node,
+        # source_bytes: bytes | bool | None = None,
         include_all_globals: bool = False,
         merge_all_global_var: bool = False,
     ):
+        # if isinstance(source_bytes, (bytes, bytearray)):
+        #     self.source_bytes = source_bytes
+        # elif isinstance(source_bytes, bool):
+        #     merge_all_global_var = include_all_globals
+        #     include_all_globals = source_bytes
+
+        # if not self.source_bytes and self.file_path:
+        #     self.source_bytes = self._get_source_bytes()
+
         chunks = []
 
         # Agar global vars merge karne hain, to shuru me hi 1st chunk bana do
         if merge_all_global_var:
-            print(merge_all_global_var)
             chunks.append(
                 {
                     "kind": "global_variables",
@@ -180,7 +190,6 @@ class CodeParser(Parser):
         # Ab actual recursion start karo
         self._extract_chunks_rec(
             node,
-            source_bytes,
             chunks=chunks,
             include_all_globals=include_all_globals,
             merge_all_global_var=merge_all_global_var,
@@ -196,13 +205,12 @@ class CodeParser(Parser):
     def _extract_chunks_rec(
         self,
         node: Node,
-        source_bytes: bytes,
         chunks: list[dict],
         parent_class=None,
         parent_function=None,
         depth=0,
-        include_all_globals: bool = False,
-        merge_all_global_var: bool = False,
+        include_all_globals=False,
+        merge_all_global_var=False,
     ):
         if chunks is None:
             # print("Chunk does")
@@ -210,7 +218,8 @@ class CodeParser(Parser):
 
         node_type = node.type
         # if node.type != "program":
-        #     print(f"Node: {node.type} Name: {node.text.decode("utf-8")}")
+        # print(node.type)
+        # print(f"Node: {node.type} Name: {node.text.decode("utf-8")}")
         kind = self._kind_of(node_type, node)
 
         # -------------------------------------------------------------
@@ -245,6 +254,7 @@ class CodeParser(Parser):
 
                         chunks.append(
                             {
+                                "_node": child,
                                 "kind": "function",
                                 "name": fn_name,
                                 "is_arrow": value_node.type == "arrow_function",
@@ -258,9 +268,6 @@ class CodeParser(Parser):
                         )
                     # Otherwise, treat as Module/Global Level Variable
                     elif parent_class is None and parent_function is None:
-                        print(
-                            f"Checking variable: {var_name}, include_all_globals={include_all_globals}, merge_all_global_var={merge_all_global_var}"
-                        )
                         if self._is_significant_variable(
                             var_name, value_node, include_all_globals
                         ):
@@ -272,6 +279,7 @@ class CodeParser(Parser):
                             else:
                                 chunks.append(
                                     {
+                                        "_node": child,
                                         "kind": "variable",
                                         "name": var_name,
                                         "comment": comment,
@@ -300,12 +308,11 @@ class CodeParser(Parser):
                     for child in body.children:
                         if self._kind_of(child.type, child) == "function":
                             mname_node = child.child_by_field_name("name")
-                            mname = (
-                                self._text(mname_node) if mname_node else "?"
-                            )
+                            mname = self._text(mname_node) if mname_node else "?"
                             method_sigs.append(mname)
                 chunks.append(
                     {
+                        "_node": node,
                         "kind": "class_summary",
                         "name": name,
                         "comment": comment,
@@ -319,7 +326,6 @@ class CodeParser(Parser):
                     for child in body.children:
                         self._extract_chunks_rec(
                             child,
-                            source_bytes,
                             parent_class=name,
                             depth=depth + 1,
                             chunks=chunks,
@@ -331,6 +337,7 @@ class CodeParser(Parser):
                 # interface / type / enum -> single chunk, no further recursion needed
                 chunks.append(
                     {
+                        "_node": node,
                         "kind": kind,
                         "name": name,
                         "comment": comment,
@@ -348,7 +355,7 @@ class CodeParser(Parser):
             name_node = node.child_by_field_name("name")
             # if node.type == "lexical_declaration":
             #     print(node)
-            #     print(_text(name_node, source_bytes) if name_node else None)
+            #     print(_text(name_node,  if name_node else None)
             #     print("Name Node: ", name_node)
             name = self._text(name_node) if name_node else None
             comment = self._leading_comment(node)
@@ -360,6 +367,7 @@ class CodeParser(Parser):
 
             chunks.append(
                 {
+                    "_node": node,
                     "kind": "function",
                     "name": name,
                     "comment": comment,
@@ -374,7 +382,6 @@ class CodeParser(Parser):
             for child in node.children:
                 self._extract_chunks_rec(
                     child,
-                    source_bytes,
                     parent_class=parent_class,
                     parent_function=name,
                     depth=depth + 1,
@@ -405,6 +412,7 @@ class CodeParser(Parser):
                 else:
                     chunks.append(
                         {
+                            "_node": node,
                             "kind": "variable",
                             "name": name,
                             "comment": self._leading_comment(node),
@@ -443,7 +451,9 @@ class CodeParser(Parser):
 
                 var_name = self._text(name_node) if name_node else None
 
-                if self._is_significant_variable(var_name, value_node, include_all_globals):
+                if self._is_significant_variable(
+                    var_name, value_node, include_all_globals
+                ):
                     comment = self._leading_comment(node)
                     content = self._text(node)
                     if merge_all_global_var:
@@ -451,6 +461,7 @@ class CodeParser(Parser):
                     else:
                         chunks.append(
                             {
+                                "_node": node,
                                 "kind": "variable",
                                 "name": var_name,
                                 "comment": comment,
@@ -465,7 +476,6 @@ class CodeParser(Parser):
         for child in node.children:
             self._extract_chunks_rec(
                 child,
-                source_bytes,
                 parent_class=parent_class,
                 parent_function=parent_function,
                 depth=depth,
@@ -474,3 +484,42 @@ class CodeParser(Parser):
                 merge_all_global_var=merge_all_global_var,
             )
         return chunks
+
+    def parser(
+        self,
+        doc: str | bytes | None,
+        file_path: Path | None,
+        include_global_var: bool = True,
+        group_all_var: bool = True,
+    ) -> list[dict] | None:
+        if self.file_path:
+            file_path = self.file_path
+        
+        if not doc and not file_path:
+            raise ValueError("PLEASE PROVIDE EITHER THE DOCUMENT DATA OR FILE PATH")
+
+        if doc and file_path:
+            raise ValueError("EITHER DOCUMENT DATA OR THE FILE PATH CAN BE SUPPLIED")
+
+        try:
+            if doc:
+                self.language = "markdown"
+                ast = self.parse_ast(file_data=doc)
+            elif file_path:
+                self._set_file_path(file_path=file_path)
+                ast = self.parse_ast()
+
+            if not ast:
+                logging.info("AST RECIVED FOR THE MARKDOWN IS NONE")
+                return None
+
+            chunks = self.extract_chunks(
+                ast.root_node,
+                include_all_globals=include_global_var,
+                merge_all_global_var=group_all_var,
+            )
+            return chunks
+
+        except Exception as e:
+            logger.error("ERROR WHILE PARSING THE CHUNK, ERROR : %s", e)
+            return None

@@ -1,4 +1,4 @@
-from core.db import Base
+from app.core.db import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import UUID, String, Text, ForeignKey, Boolean, Enum as SQLEnum, JSON
 import uuid
@@ -6,7 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from models.repo_file import RepoFile
+    from app.models.repo_file import RepoFile
 
 
 class FileType(str, Enum):

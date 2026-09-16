@@ -82,7 +82,7 @@ class PdfParser(VisionFilePipeline, Parser):
                     pil_img.save(img_path)
 
                     # Append relative link to markdown
-                    md_image_tag = f"\n\n![{img_name}](./images/{img_name})\n\n"
+                    md_image_tag = f"\n\n![{img_name}]({img_path})\n\n"
                     reconstructed_md.append(md_image_tag + md_chunks[i + 1])
                 else:
                     reconstructed_md.append(md_chunks[i + 1])

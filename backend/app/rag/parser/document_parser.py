@@ -1,4 +1,4 @@
-from image_pipeline import VisionFilePipeline
+from rag.parser.image_pipeline import VisionFilePipeline
 import zipfile
 import os
 from pptx import Presentation
@@ -6,24 +6,50 @@ import xml.etree.ElementTree as ET
 import re
 import pypandoc
 import urllib.parse
+from pathlib import Path
+import shutil
 
 
 class DocumentParser(VisionFilePipeline):
     def __init__(self, media_temp_dir: str = "temp_media") -> None:
         super().__init__()
-        self.supported_extensions = {".docx", ".pptx", ".odt"}
+        self.supported_extensions = {".docx", ".pptx", ".odt", ".rtf"}
         self.media_temp_dir = media_temp_dir
 
-    def _extract_office_images(self, zip_filepath: str, output_dir: str) -> dict:
+    def _extract_office_images(self, filepath: str, output_dir: str) -> dict:
         """
-        Extracts images directly from .docx, .pptx, and .odt zip structures.
+        Extracts images directly from .docx, .pptx, and .odt zip structures,
+        as well as .rtf files via Pandoc conversion.
         Returns a mapping of { image_filename: full_extracted_path }.
         """
         extracted_map = {}
-        if not zipfile.is_zipfile(zip_filepath):
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Handle RTF files via Pandoc media extraction
+        if filepath.lower().endswith(".rtf"):
+            media_dir = os.path.join(output_dir, "rtf_media")
+
+            # Convert RTF -> Markdown and tell Pandoc to extract media
+            pypandoc.convert_file(
+                filepath,
+                "markdown",
+                extra_args=[f"--extract-media={media_dir}", "--quiet"],
+            )
+
+            # Walk through the extracted media folder to populate extracted_map
+            if os.path.exists(media_dir):
+                for root, _, files in os.walk(media_dir):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        extracted_map[file] = full_path
+
             return extracted_map
 
-        with zipfile.ZipFile(zip_filepath, "r") as z:
+        # Handle ZIP-based formats (.docx, .pptx, .odt)
+        if not zipfile.is_zipfile(filepath):
+            return extracted_map
+
+        with zipfile.ZipFile(filepath, "r") as z:
             for member in z.namelist():
                 # 'Pictures/' catches .odt images, 'word/media/' for docx, 'ppt/media/' for pptx
                 if member.startswith(
@@ -215,7 +241,7 @@ class DocumentParser(VisionFilePipeline):
 
         return chart_map
 
-    def parse(self, filepath: str) -> str:
+    def parse(self, filepath: Path) -> str:
         """Main execution flow: Extract -> Analyze -> Format -> Clean."""
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
@@ -227,7 +253,9 @@ class DocumentParser(VisionFilePipeline):
             )
 
         # 1. Extract embedded images directly from the zip structure
-        extracted_images = self._extract_office_images(filepath, self.media_temp_dir)
+        extracted_images = self._extract_office_images(
+            str(filepath), self.media_temp_dir
+        )
 
         # 2. Process images: Call Save_Image() and Vision_LLM() once per image
         descriptions_by_filename = {}
@@ -242,21 +270,27 @@ class DocumentParser(VisionFilePipeline):
 
         if ext == ".pptx":
             extracted_chart_tables_list = self._extract_pptx_charts_as_markdown(
-                filepath
+                str(filepath)
             )
         elif ext == ".docx":
             extracted_chart_tables_list = self._extract_docx_charts_as_markdown(
-                filepath
+                str(filepath)
             )
         elif ext == ".odt":
-            extracted_odt_charts_map = self._extract_odt_charts_as_markdown(filepath)
+            extracted_odt_charts_map = self._extract_odt_charts_as_markdown(
+                str(filepath)
+            )
 
         # 4. Parse main text layout and tables using Pandoc
         print(f"[System] Converting {ext} to Markdown via Pandoc...")
         markdown_content = pypandoc.convert_file(
             filepath,
             "markdown",
-            extra_args=[f"--extract-media={self.media_temp_dir}", "--quiet"],
+            extra_args=(
+                [f"--extract-media={self.media_temp_dir}", "--quiet"]
+                if filepath.suffix == ".rtf"
+                else []
+            ),
         )
 
         # 5. Replace Standard Images with LLM Descriptions
@@ -265,7 +299,7 @@ class DocumentParser(VisionFilePipeline):
             img_filename = os.path.basename(urllib.parse.unquote(img_src))
             if img_filename in descriptions_by_filename:
                 llm_desc = descriptions_by_filename[img_filename]
-                return f"\n\n*[AI Image Description: {llm_desc}]*\n\n"
+                return f"\n\n![Image](*[AI Image Description: {llm_desc}]*)\n\n"
             return match.group(0)
 
         markdown_image_pattern = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)(?:\{[^}]*\})?")
@@ -299,5 +333,9 @@ class DocumentParser(VisionFilePipeline):
         final_content = re.sub(
             odt_placeholder_pattern, replace_odt_object, final_content
         )
+
+        media_dir = Path(self.media_temp_dir)
+        if media_dir.exists():
+            shutil.rmtree(media_dir)
 
         return final_content

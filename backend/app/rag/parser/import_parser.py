@@ -5,7 +5,7 @@ from pygments.lexers import get_lexer_for_filename
 from pygments.util import ClassNotFound
 from tree_sitter_language_pack import get_parser, get_language
 import sys
-from rag.parser.parser import Parser
+from app.rag.parser.parser import Parser
 import re, syslog as sl
 
 NODE_BUILTINS = {
@@ -518,7 +518,7 @@ class ImportParser(Parser):
 
                     chunks.append(data)
 
-        return chunks
+        return {"package": None, "language": self.language, "imports": chunks}
 
     def _check_dynamic_import(self, node: Node):
         """Helper to find importlib.import_module(...) or __import__(...)"""
@@ -696,10 +696,10 @@ class ImportParser(Parser):
             #     if dyn_data:
             #         chunks.append(dyn_data)
 
-        return chunks
+        return {"package": None, "language": self.language, "imports": chunks}
 
     def _extract_java_imports_and_package(self, parent_node: Node):
-        result = {"package": None, "imports": []}
+        result = {"package": None, "language": self.language, "imports": []}
 
         # Java me top-level nodes direct parent_node (program) ke children hote hain
         for node in parent_node.children:
@@ -782,7 +782,7 @@ class ImportParser(Parser):
                         # Single import line: import "fmt"
                         imports.append(self._parse_go_import_spec(child, context))
 
-        return imports
+        return {"package": None, "language": self.language, "imports": imports}
 
     def _parse_go_import_spec(self, spec_node: Node, context: str | None):
 
@@ -805,12 +805,12 @@ class ImportParser(Parser):
             "is_wildcard": False,
         }
 
-    def extract_imports(self, file_path: Path):
+    def extract_imports(self, file_path: Path) -> dict[str, str | list]:
         if not file_path.exists():
             raise FileNotFoundError("The file send does not exist", file_path)
 
         self._set_file_path(file_path)
-        self.source_bytes = self._get_source_bytes(file_path)
+        self.source_bytes = self._get_source_bytes()
         # self.root_path = root_path
 
         tree = self.parse_ast()
@@ -829,6 +829,6 @@ class ImportParser(Parser):
             context = self._get_go_module_name()
             return self._extract_go_imports(parent_node, context)
         else:
-            return ValueError(
+            raise ValueError(
                 "Language is not supported so far, switched to simple chunking."
             )
