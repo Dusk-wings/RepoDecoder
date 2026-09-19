@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.ingest_logs import IngestLogs
     from app.models.dependencies import Dependencies
     from app.models.repo_dep_details import RepoDepDetails
+    from app.models.bucket_file import BucketFile
 
 
 class RepoStatus(str, Enum):
@@ -29,7 +30,9 @@ class Repository(Base):
         default=uuid.uuid4,
     )
     repo_name: Mapped[str] = mapped_column(String(110), nullable=False)
-    repo_full_name: Mapped[str] = mapped_column(String(210), nullable=False, unique=True)
+    repo_full_name: Mapped[str] = mapped_column(
+        String(210), nullable=False, unique=True
+    )
 
     repo_url: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
 
@@ -72,4 +75,8 @@ class Repository(Base):
 
     dep_details: Mapped[list["RepoDepDetails"]] = relationship(
         "RepoDepDetails", back_populates="file", cascade="all, delete-orphan"
+    )
+
+    bucket_files: Mapped[list["BucketFile"]] = relationship(
+        "BucketFile", back_populates="repository", cascade="all, delete-orphan"
     )

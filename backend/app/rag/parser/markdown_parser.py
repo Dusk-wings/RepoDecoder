@@ -1,9 +1,10 @@
-from rag.parser.parser import Parser
+from app.rag.parser.parser import Parser
 from tree_sitter import Node
 import re
-from rag.parser.image_pipeline import VisionFilePipeline
+from app.rag.parser.image_pipeline import VisionFilePipeline
 from pathlib import Path
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -12,12 +13,14 @@ class MarkDownParser(Parser, VisionFilePipeline):
     def __init__(self):
         super().__init__()
 
-    def parse_markdown(
+    async def parse_markdown(
         self,
         parent_node: Node,
+        file_id: uuid.UUID,
+        repo_id: uuid.UUID,
         metadata=None,
         use_vision_llm: bool = True,
-        is_image_internal: bool = False,
+        # is_image_internal: bool = False,
     ):
         if metadata is None:
             metadata = {}
@@ -40,6 +43,7 @@ class MarkDownParser(Parser, VisionFilePipeline):
                 section_content = []
                 image_urls = []
                 alt_texts = []
+                image_descriptions = []
 
                 for child in node.children:
                     # print("Child Type, " , child.type, "Text, ", child.text)
@@ -66,23 +70,36 @@ class MarkDownParser(Parser, VisionFilePipeline):
                         if img_pattern.search(paragraph_content):
                             is_image = True
 
+                            urls = []
+
                             def replace_md_image(match):
                                 alt = match.group(1)
                                 url = match.group(2)
+
                                 image_urls.append(url)
                                 alt_texts.append(alt)
+                                try:
+                                    if use_vision_llm:
+                                        description = self._vission_LLM(image_url=url)
+                                        image_descriptions.append(description)
+                                        urls.append(url)
+                                        return description
+                                    return match.group(0)
+                                except Exception as e:
+                                    logger.exception(
+                                        "[PARSE-MARKDOWN] FAILED TO GENERATE TEH IMAGE DESCRIPTION, ERROR %s",
+                                        e,
+                                    )
+                                    return match.group(0)
 
-                                # Call the Vision LLM to get the description
-                                description = self._vission_LLM(
-                                    image_url=url, internal_url=is_image_internal
+                            for url in urls:
+                                await self._save_image(
+                                    file_id=file_id, repo_id=repo_id, url=url
                                 )
-                                return description
-
-                            # Replace the image markdown with the LLM description
-                            if use_vision_llm == True:
-                                paragraph_content = img_pattern.sub(
-                                    replace_md_image, paragraph_content
-                                )
+                            urls = []
+                            paragraph_content = img_pattern.sub(
+                                replace_md_image, paragraph_content
+                            )
 
                         html_img_pattern = re.compile(
                             r'<img\b(?=[^>]*\bsrc\s*=\s*["\']([^"\']*)["\'])'
@@ -95,23 +112,37 @@ class MarkDownParser(Parser, VisionFilePipeline):
                             print("HTML image found in paragraph:", paragraph_content)
                             is_image = True
 
+                            urls = []
+
                             def replace_html_image(match):
                                 url = match.group(1)  # src
                                 alt = match.group(2)  # alt
                                 image_urls.append(url)
                                 alt_texts.append(alt)
 
-                                # Call the Vision LLM to get the description
-                                description = self._vission_LLM(
-                                    image_url=url, internal_url=is_image_internal
-                                )
-                                return description
+                                try:
+                                    if use_vision_llm:
+                                        description = self._vission_LLM(image_url=url)
+                                        image_descriptions.append(description)
+                                        urls.append(url)
+                                        return description
+                                    return match.group(0)
+                                except Exception as e:
+                                    logger.exception(
+                                        "[PARSE-MARKDOWN] FAILED TO GENERATE TEH IMAGE DESCRIPTION, ERROR %s",
+                                        e,
+                                    )
+                                    return match.group(0)
 
-                            # Replace the HTML img tag with the LLM description
-                            if use_vision_llm == True:
-                                paragraph_content = html_img_pattern.sub(
-                                    replace_html_image, paragraph_content
+                            for url in urls:
+                                await self._save_image(
+                                    file_id=file_id, repo_id=repo_id, url=url
                                 )
+                            urls = []
+
+                            paragraph_content = html_img_pattern.sub(
+                                replace_html_image, paragraph_content
+                            )
 
                         # section_content.append(html)
 
@@ -132,21 +163,35 @@ class MarkDownParser(Parser, VisionFilePipeline):
                         if html_img_pattern.search(html):
                             is_image = True
 
+                            urls = []
+
                             def replace_html_image(match):
                                 url = match.group(1)  # src
                                 alt = match.group(2)  # alt
                                 image_urls.append(url)
                                 alt_texts.append(alt)
 
-                                # Call the Vision LLM to get the description
-                                description = self._vission_LLM(
-                                    image_url=url, internal_url=is_image_internal
-                                )
-                                return description
+                                try:
+                                    if use_vision_llm:
+                                        description = self._vission_LLM(image_url=url)
+                                        image_descriptions.append(description)
+                                        urls.append(url)
+                                        return description
+                                    return match.group(0)
+                                except Exception as e:
+                                    logger.exception(
+                                        "[PARSE-MARKDOWN] FAILED TO GENERATE TEH IMAGE DESCRIPTION, ERROR %s",
+                                        e,
+                                    )
+                                    return match.group(0)
 
-                            # Replace the HTML img tag with the LLM description
-                            if use_vision_llm == True:
-                                html = html_img_pattern.sub(replace_html_image, html)
+                            for url in urls:
+                                await self._save_image(
+                                    file_id=file_id, repo_id=repo_id, url=url
+                                )
+                            urls = []
+
+                            html = html_img_pattern.sub(replace_html_image, html)
 
                         section_content.append(html)
 
@@ -183,6 +228,7 @@ class MarkDownParser(Parser, VisionFilePipeline):
                     chunk_metadata["image"] = {
                         "image_urls": image_urls,
                         "alt_texts": alt_texts,
+                        "descriptions": image_descriptions,
                     }
 
                 # Join all collected content pieces with double newlines for readability
@@ -195,23 +241,41 @@ class MarkDownParser(Parser, VisionFilePipeline):
                     )
 
                 # Recursively process any nested sections
-                chunks.extend(self.parse_markdown(node, current_metadata))
+                chunks.extend(
+                    await self.parse_markdown(
+                        parent_node=node,
+                        file_id=file_id,
+                        repo_id=repo_id,
+                        metadata=current_metadata,
+                        use_vision_llm=use_vision_llm,
+                        # is_image_internal=is_image_internal,
+                    )
+                )
 
             else:
                 # Handle root-level nodes that aren't inside a section (if any exist)
-                self.parse_markdown(node, metadata)
+                await self.parse_markdown(
+                    parent_node=node,
+                    metadata=metadata,
+                    file_id=file_id,
+                    repo_id=repo_id,
+                    use_vision_llm=use_vision_llm,
+                    # is_image_internal=is_image_internal,
+                )
 
         return chunks
 
     def _count_words(self, text: str) -> int:
         return len(re.findall(r"\w+", text))
 
-    def parser(
+    async def parser(
         self,
         doc: str | bytes | None,
         file_path: Path | None,
+        file_id: uuid.UUID,
+        repo_id: uuid.UUID,
         use_vision_llm: bool = True,
-        is_image_internal: bool = False,
+        # is_image_internal: bool = False,
     ) -> list[dict] | None:
         if doc is None and file_path is None:
             raise ValueError("PLEASE PROVIDE EITHER THE DOCUMENT DATA OR FILE PATH")
@@ -233,10 +297,12 @@ class MarkDownParser(Parser, VisionFilePipeline):
                 return None
 
             # Ensure parse_markdown uses self.source_code or self.file_path
-            chunks = self.parse_markdown(
+            chunks = await self.parse_markdown(
                 parent_node=ast.root_node,
                 use_vision_llm=use_vision_llm,
-                is_image_internal=is_image_internal,
+                file_id=file_id,
+                repo_id=repo_id,
+                # is_image_internal=is_image_internal,
             )
             return chunks
 

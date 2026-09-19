@@ -1,8 +1,9 @@
 import uuid
 import logging
 from pathlib import Path
-import uuid
 import hashlib
+import json
+from openai import OpenAI
 
 from app.rag.parser.import_parser import ImportParser
 from app.rag.parser.parser import Parser
@@ -23,6 +24,7 @@ from app.rag.utils.file_validator import FileInspector
 from app.services.ingest.github_client import GithubClient
 
 from app.models.repo_file import FileProcess
+from app.core.config import env_config
 
 import asyncio
 
@@ -46,6 +48,7 @@ ALLOWED_SPREAD_SHEAT = {
 }
 
 FILE_EMBEDDING_LIMIT = 25
+MODEL_NAME = "qwen/qwen3.8-27b"
 
 
 class Ingest(GithubClient):
@@ -68,7 +71,63 @@ class Ingest(GithubClient):
 
     def _parse_tabular_data_to_str(self, data: dict) -> str:
         try:
-            return ""
+            if not isinstance(data, dict):
+                raise TypeError("Tabular data must be a dictionary")
+
+            metadata = data.get("metadata") or {}
+            file_name = metadata.get("file_name") or "unknown"
+            file_path = metadata.get("file_path") or ""
+            extension = Path(str(file_path or file_name)).suffix.lstrip(".")
+            file_language = extension or "unknown"
+
+            if not env_config.GROQ_API_KEY:
+                raise RuntimeError("GROQ_API_KEY is not configured")
+
+            client = OpenAI(
+                api_key=env_config.GROQ_API_KEY,
+                base_url="https://api.groq.com/openai/v1",
+            )
+
+            if "is_complete" in data:
+                del data["is_complete"]
+
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Describe the tabular file for semantic search. "
+                            "Mention the subject, important columns, and the kind or the datatype of the column. "
+                            "Return only the description, "
+                            "with no title or formatting, in under 200 tokens."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps(data, default=str),
+                    },
+                ],
+                max_tokens=200,
+            )
+
+            description = response.choices[0].message.content
+            if not description:
+                raise RuntimeError("The tabular description model returned no text")
+
+            embedding_text = (
+                f"File: {file_name} | Language: {file_language} | "
+                f"AI Description: {description.strip()}"
+            )
+
+            # Keep the complete embedding input below the model's 490-token budget.
+            while self.embedder.count_tokens(embedding_text) >= 490:
+                words = embedding_text.rsplit(" ", 1)
+                if len(words) != 2:
+                    break
+                embedding_text = words[0].rstrip(" ,.;:")
+
+            return embedding_text
         except Exception as e:
             logger.exception(
                 "[INJEST-PARSE-TABULAR] FAILED TO PARSE TABULAR DATA: %s", e
@@ -120,7 +179,7 @@ class Ingest(GithubClient):
             raise
 
     async def _chunk_file(
-        self, file_path: Path, file_id: uuid.UUID | None = None
+        self, file_path: Path, file_id: uuid.UUID
     ) -> None | list[dict]:
         if not file_path.exists():
             logger.warning(
@@ -138,12 +197,15 @@ class Ingest(GithubClient):
             raise
 
     async def _chunk_file_impl(
-        self, file_path: Path, file_id: uuid.UUID | None = None
+        self, file_path: Path, file_id: uuid.UUID
     ) -> None | list[dict]:
 
         self.file_inspector.set_file_path(file_path)
         file_details = self.file_inspector.inspect()
         # self.parser._set_file_path(file_path)
+
+        if not self.repo_id:
+            return None
 
         chunks = []
         # chunks_dict = []
@@ -161,8 +223,11 @@ class Ingest(GithubClient):
                             file_path, self.parser.extension_to_language_name
                         )
 
-                        parsed_markdown = self.markdown_parser.parser(
-                            doc=document_markdown, file_path=None
+                        parsed_markdown = await self.markdown_parser.parser(
+                            doc=document_markdown,
+                            file_path=None,
+                            repo_id=self.repo_id,
+                            file_id=file_id,
                         )
                         if parsed_markdown:
                             chunks = markdown_chunker.create_md_embedding_content(
@@ -170,12 +235,14 @@ class Ingest(GithubClient):
                                 optimize=True,
                                 count_token=self.embedder.count_tokens,
                             )
+                            self.document_parser.delete_converted_doc()
 
                         else:
                             logger.info(
                                 "[INJEST-CHUNKING] PARSING PROCESS FAILED WHILE CHUNKING THE FILE %s",
                                 file_path,
                             )
+                            self.document_parser.delete_converted_doc()
                             await self._update_file_status(
                                 file_path=str(file_path), status=FileProcess.failed
                             )
@@ -187,11 +254,13 @@ class Ingest(GithubClient):
                     markdown_file_path = self.pdf_parser.convert_file(
                         file_path=file_path
                     )
-                    parsed_markdown = self.markdown_parser.parser(
+                    parsed_markdown = await self.markdown_parser.parser(
                         doc=None,
                         file_path=markdown_file_path,
+                        file_id=file_id,
+                        repo_id=self.repo_id,
                         use_vision_llm=True,
-                        is_image_internal=True,
+                        # is_image_internal=True,
                     )
 
                     if parsed_markdown is not None:
@@ -227,9 +296,12 @@ class Ingest(GithubClient):
                             )
                             chunks.append(
                                 {
-                                    "chunk": [tabular_data],
-                                    "embedding_str": [tabular_description],
+                                    "chunk": tabular_data,
+                                    "embedding_str": tabular_description,
                                 }
+                            )
+                            await self.add_file_to_bucket(
+                                file=str(file_path), file_id=file_id, repo_id=self.repo_id
                             )
                             # chunks_dict.append(tabular_data)
                         else:
@@ -277,8 +349,11 @@ class Ingest(GithubClient):
                         return None
 
                 elif code_alias == "markdown":
-                    parsed_markdown = self.markdown_parser.parser(
-                        doc=None, file_path=file_path
+                    parsed_markdown = await self.markdown_parser.parser(
+                        doc=None,
+                        file_path=file_path,
+                        repo_id=self.repo_id,
+                        file_id=file_id,
                     )
 
                     if parsed_markdown is not None:
@@ -541,9 +616,13 @@ class Ingest(GithubClient):
             embedding_file_ids = []
             for file in files:
                 stored_file_path = file.get("file_path", "")
+                file_id = file.get("file_id", None)
+                if not file_id:
+                    raise KeyError("[INJEST-PROCESS-BATCH] FILE-ID IS REQUIRED")
                 if stored_file_path:
                     chunks = await self._chunk_file(
-                        file_path=Path(self.target_dir) / stored_file_path
+                        file_path=Path(self.target_dir) / stored_file_path,
+                        file_id=file_id,
                     )
                     if chunks:
                         embedding = self.embedder.generate_embeddings(
@@ -591,10 +670,8 @@ class Ingest(GithubClient):
 
         return hasher.hexdigest()
 
-
     async def ingest_repo(self):
         try:
-
             does_exist = await self._fetch_github_repo()
             logger.info(
                 "[INGEST-REPO] STARTING THE INGEST PROCESS FOR REPO: %s",

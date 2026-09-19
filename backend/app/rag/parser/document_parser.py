@@ -241,6 +241,11 @@ class DocumentParser(VisionFilePipeline):
 
         return chart_map
 
+    def delete_converted_doc(self):
+        media_dir = Path(self.media_temp_dir)
+        if media_dir.exists():
+            shutil.rmtree(media_dir)
+
     def parse(self, filepath: Path) -> str:
         """Main execution flow: Extract -> Analyze -> Format -> Clean."""
         if not os.path.exists(filepath):
@@ -257,12 +262,12 @@ class DocumentParser(VisionFilePipeline):
             str(filepath), self.media_temp_dir
         )
 
-        # 2. Process images: Call Save_Image() and Vision_LLM() once per image
-        descriptions_by_filename = {}
-        for img_filename, local_path in extracted_images.items():
-            if os.path.exists(local_path):
-                self._save_image(local_path)
-                descriptions_by_filename[img_filename] = self._vission_LLM(local_path)
+        # 2. Keep extracted images in media_temp_dir for later description generation
+        image_paths_by_filename = {
+            img_filename: Path(local_path).as_posix()
+            for img_filename, local_path in extracted_images.items()
+            if os.path.exists(local_path)
+        }
 
         # 3. Extract charts natively based on file type
         extracted_chart_tables_list = []
@@ -283,28 +288,44 @@ class DocumentParser(VisionFilePipeline):
 
         # 4. Parse main text layout and tables using Pandoc
         print(f"[System] Converting {ext} to Markdown via Pandoc...")
+        output_format = "markdown-native_divs-native_spans-raw_html-header_attributes"
+
+        extra_args = [
+            "--wrap=none",
+        ]
+
+        # Media extraction
+        if filepath.suffix in [".rtf", ".docx", ".odt", ".pptx"]:
+            extra_args.extend([f"--extract-media={self.media_temp_dir}", "--quiet"])
         markdown_content = pypandoc.convert_file(
             filepath,
-            "markdown",
-            extra_args=(
-                [f"--extract-media={self.media_temp_dir}", "--quiet"]
-                if filepath.suffix == ".rtf"
-                else []
-            ),
+            output_format,
+            extra_args=extra_args,
         )
 
-        # 5. Replace Standard Images with LLM Descriptions
-        def replace_image_with_llm(match) -> str:
+        markdown_content = re.sub(
+            r"^[ \t]*(?:[-*+]\s*)++(#+.*)$", r"\1", markdown_content, flags=re.MULTILINE
+        )
+
+        # 2. Remove empty heading artifacts (e.g., "- - ##" or "## " with no text)
+        markdown_content = re.sub(
+            r"^[ \t]*(?:[-*+]\s*)*(#+)\s*$", "", markdown_content, flags=re.MULTILINE
+        )
+
+        # 3. Clean up excessive blank lines left over from deleted empty headings
+        markdown_content = re.sub(r"\n{3,}", "\n\n", markdown_content)
+
+        # 5. Replace image sources with paths to the persisted extracted images
+        def replace_image_source(match) -> str:
             img_src = match.group(2)
             img_filename = os.path.basename(urllib.parse.unquote(img_src))
-            if img_filename in descriptions_by_filename:
-                llm_desc = descriptions_by_filename[img_filename]
-                return f"\n\n![Image](*[AI Image Description: {llm_desc}]*)\n\n"
+            if img_filename in image_paths_by_filename:
+                return f"![{match.group(1)}]({image_paths_by_filename[img_filename]})"
             return match.group(0)
 
         markdown_image_pattern = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)(?:\{[^}]*\})?")
         final_content = re.sub(
-            markdown_image_pattern, replace_image_with_llm, markdown_content
+            markdown_image_pattern, replace_image_source, markdown_content
         )
 
         # 6. Replace OpenXML Chart Placeholders (.docx / .pptx)
@@ -319,23 +340,31 @@ class DocumentParser(VisionFilePipeline):
             else:
                 final_content += f"\n{chart_md}"
 
-        # 7. Replace Pandoc's ODT Object Placeholders (.odt)
-        # Matches: []{.image .placeholderoriginal-image-src="./ObjectReplacements/Object 2" ... }
+        # 7. Replace Pandoc's ODT chart images with extracted chart tables
         def replace_odt_object(match):
-            obj_src = match.group(1)  # e.g., 'ObjectReplacements/Object 1'
+            obj_src = match.group(1)
             if obj_src in extracted_odt_charts_map:
                 return extracted_odt_charts_map[obj_src]
-            return ""  # Clear the placeholder if we failed to parse it
+            return match.group(0)
+
+        odt_object_pattern = re.compile(
+            r"<img\s+src=\"(?:\./)?([^\"]*ObjectReplacements/[^\"]+)\"[^>]*/?>",
+            re.IGNORECASE,
+        )
+        final_content = re.sub(odt_object_pattern, replace_odt_object, final_content)
+
+        odt_markdown_object_pattern = re.compile(
+            r"\[\]\((?:\./)?(ObjectReplacements/[^)]+)\)(?:\{[^}]*\})?"
+        )
+        final_content = re.sub(
+            odt_markdown_object_pattern, replace_odt_object, final_content
+        )
 
         odt_placeholder_pattern = re.compile(
-            r"\[\]\{[^}]*original-image-src=\"\.\/([^\"]+)\"[^}]*\}"
+            r'\[\]\{[^}]*original-image-src="(?:\./)?([^"}]*ObjectReplacements/[^"}]+)"[^}]*\}'
         )
         final_content = re.sub(
             odt_placeholder_pattern, replace_odt_object, final_content
         )
-
-        media_dir = Path(self.media_temp_dir)
-        if media_dir.exists():
-            shutil.rmtree(media_dir)
 
         return final_content

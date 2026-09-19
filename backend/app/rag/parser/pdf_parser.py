@@ -6,8 +6,8 @@ from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 
-from image_pipeline import VisionFilePipeline
-from parser import Parser
+from app.rag.parser.image_pipeline import VisionFilePipeline
+from app.rag.parser.parser import Parser
 
 logger = logging.getLogger(__name__)
 

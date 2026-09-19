@@ -8,12 +8,18 @@ from app.models.repo_dep_details import RepoDepDetails
 from app.models.dependencies import Dependencies
 from app.models.embedding import Embedding
 from app.models.repository import Repository, RepoStatus
+from app.models.bucket_file import BucketFileType
 
 from app.core.db import AsyncSessionLocal
+from app.core.config import env_config
+
+from app.utils.storage import BucketStorage
 
 from typing import Any
 import logging
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +84,9 @@ class IngestDbOps:
     async def get_existing_files(self) -> dict:
         async with AsyncSessionLocal() as db:
             result = await db.execute(
-                select(
-                    RepoFile.file_hash, RepoFile.file_path, RepoFile.status
-                ).where(RepoFile.repo_id == self.repo_id)
+                select(RepoFile.file_hash, RepoFile.file_path, RepoFile.status).where(
+                    RepoFile.repo_id == self.repo_id
+                )
             )
             return {row["file_path"]: row for row in result.mappings().all()}
 
@@ -173,9 +179,7 @@ class IngestDbOps:
                 await db.rollback()
                 raise
 
-    async def save_embeddings(
-        self, embeddings: list[dict], file_ids: list[uuid.UUID]
-    ):
+    async def save_embeddings(self, embeddings: list[dict], file_ids: list[uuid.UUID]):
         async with AsyncSessionLocal() as db:
             try:
                 if embeddings:
@@ -205,12 +209,12 @@ class IngestDbOps:
     ):
         async with AsyncSessionLocal() as db:
             try:
-                stmt = select(RepoFile.file_id).where(
-                    RepoFile.file_path == file_path, RepoFile.repo_id == self.repo_id
+                file_id = await db.scalar(
+                    select(RepoFile.file_id).where(
+                        RepoFile.file_path == file_path,
+                        RepoFile.repo_id == self.repo_id,
+                    )
                 )
-
-                result = await db.execute(stmt)
-                file_id = result.scalar()
 
                 if file_id is not None:
                     for data in deps:
@@ -244,8 +248,8 @@ class IngestDbOps:
                 raise
 
     async def save_repo_details(self, github_url: str, details: dict):
-        try:
-            async with AsyncSessionLocal() as db:
+        async with AsyncSessionLocal() as db:
+            try:
                 data = {
                     "repo_name": details["name"],
                     "repo_full_name": details["full_name"],
@@ -269,12 +273,13 @@ class IngestDbOps:
 
                 await db.commit()
 
-        except Exception:
-            logger.exception(
-                "[INJEST-DB-OPS-SAVE-REPO] REPO %s DETAILS ARE NOT SAVED", github_url
-            )
-            await db.rollback()
-            raise
+            except Exception:
+                logger.exception(
+                    "[INJEST-DB-OPS-SAVE-REPO] REPO %s DETAILS ARE NOT SAVED",
+                    github_url,
+                )
+                await db.rollback()
+                raise
 
     async def get_repo_detail(self, github_url: str):
         try:
@@ -288,5 +293,41 @@ class IngestDbOps:
 
                 return data
         except Exception:
-            logger.exception("[INJEST-DB-OPS-GET-REPO-DETAILS] UNABELE TO GET THE REPO-DETAILS FOR %s", github_url)
+            logger.exception(
+                "[INJEST-DB-OPS-GET-REPO-DETAILS] UNABELE TO GET THE REPO-DETAILS FOR %s",
+                github_url,
+            )
+            raise
+
+    async def add_file_to_bucket(
+        self, file: str, file_id: uuid.UUID, repo_id: uuid.UUID
+    ):
+        try:
+            file_path = Path(file)
+
+            spreadsheat_bucket = env_config.SPREADSHEAT_BUCKET_NAME
+            if not spreadsheat_bucket:
+                return
+
+            time = datetime.now(timezone.utc).strftime("%Y-%m-%d:%H-%M-%SZ")
+            object_name = f"{repo_id}/{file_id}/{uuid.uuid4}-{time}{file_path.suffix}"
+
+            BucketStorage.store_file(
+                bucket_name=spreadsheat_bucket,
+                object_name=object_name,
+                file_path=file_path,
+                public_bucket=False,
+            )
+
+            await BucketStorage.update_file_upload_status(
+                file_id=file_id,
+                repo_id=repo_id,
+                url=file,
+                storage_key=object_name,
+                file_type=BucketFileType.spread_sheat,
+            )
+        except Exception as e:
+            logging.exception(
+                "[ADD-FILE-BUCKET] FAILED TO ADD FILE TO THE BUCKET, ERROR: %s", e
+            )
             raise

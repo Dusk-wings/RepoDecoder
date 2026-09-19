@@ -1,4 +1,4 @@
-from core.db import Base
+from app.core.db import Base
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy import Text, UUID, DateTime, ForeignKey, func, JSON
 from pgvector.sqlalchemy import Vector

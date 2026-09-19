@@ -129,17 +129,18 @@ class MarkdownChunker:
         if "image" in meta and isinstance(meta["image"], dict):
             urls = meta["image"].get("image_urls", [])
             alts = meta["image"].get("alt_texts", [])
+            descriptions = meta["image"].get("descriptions", [])
             is_nested = True
         else:
             urls = meta.get("image_urls", [])
             alts = meta.get("alt_texts", [])
+            descriptions = meta.get("image_descriptions", [])
             is_nested = False
 
         content = chunk.get("content", "")
-        content_str = self._create_embedding_text(chunk)
 
         if len(urls) <= 1:
-            chunk["token_count"] = count_tokens(content_str)
+            chunk["token_count"] = count_tokens(self._create_embedding_text(chunk))
             if chunk["token_count"] <= max_tokens:
                 return [chunk]
 
@@ -153,38 +154,61 @@ class MarkdownChunker:
         split_chunks = []
         lines = content.split("\n")
 
-        # 1. Map each URL to its exact line number in the content
-        url_indices = []
-        for url in urls:
-            for idx, line in enumerate(lines):
-                if url in line:
-                    url_indices.append((url, idx))
-                    break
+        # Vision descriptions replace image syntax in content, so URLs may not
+        # be present. Use the descriptions as boundaries when available.
+        image_boundaries = []
+        search_from = 0
+        boundary_values = descriptions or urls
+        for image_value in boundary_values:
+            value = str(image_value).strip()
+            position = content.find(value, search_from) if value else -1
+            if position < 0:
+                image_boundaries = []
+                break
+            image_boundaries.append(position)
+            search_from = position + len(value)
+
+        if len(image_boundaries) != len(urls):
+            # Do not drop the image chunk when its source text cannot be mapped.
+            chunk["token_count"] = count_tokens(self._create_embedding_text(chunk))
+            if chunk["token_count"] <= max_tokens:
+                return [chunk]
+            return self._split_text_chunk_by_tokens(
+                chunk,
+                max_tokens=max_tokens,
+                count_token=count_tokens,
+                overlap_words=20,
+            )
 
         # 2. Create a localized sliding window for each image
-        for i, (target_url, target_idx) in enumerate(url_indices):
+        for i, target_url in enumerate(urls):
             new_meta = meta.copy()
 
             if is_nested:
                 new_meta["image"] = {
                     "image_urls": [target_url],
                     "alt_texts": [alts[i]] if i < len(alts) else [],
+                    "descriptions": [descriptions[i]] if i < len(descriptions) else [],
                 }
             else:
                 new_meta["image_urls"] = [target_url]
                 new_meta["alt_texts"] = [alts[i]] if i < len(alts) else []
+                new_meta["image_descriptions"] = (
+                    [descriptions[i]] if i < len(descriptions) else []
+                )
 
             # --- LOCALIZED WINDOW LOGIC ---
             # Start just after the PREVIOUS image (or at the very beginning)
-            start_idx = url_indices[i - 1][1] + 1 if i > 0 else 0
+            start_idx = image_boundaries[i - 1] if i > 0 else 0
 
             # End right at the NEXT image (or at the very end)
-            end_idx = url_indices[i + 1][1] if i < len(url_indices) - 1 else len(lines)
+            end_idx = (
+                image_boundaries[i + 1]
+                if i < len(image_boundaries) - 1
+                else len(content)
+            )
 
-            # Slice the lines for this specific image
-            chunk_lines = lines[start_idx:end_idx]
-
-            new_content = "\n".join(chunk_lines).strip()
+            new_content = content[start_idx:end_idx].strip()
             new_content = re.sub(r"\n{3,}", "\n\n", new_content)
 
             split_chunks.append(
@@ -417,6 +441,19 @@ class MarkdownChunker:
                         overlap_chars=100,
                     )
                 )
+
+        if current_body:
+            current_content = "\n".join(
+                before_table + header_lines + current_body + after_table
+            ).strip()
+            current_chunk = {
+                "metadata": meta.copy(),
+                "content": current_content,
+            }
+            current_chunk["token_count"] = count_token(
+                self._create_embedding_text(current_chunk)
+            )
+            split_chunks.append(current_chunk)
 
         return split_chunks
 
@@ -705,7 +742,17 @@ class MarkdownChunker:
                     max_tokens=max_tokens,
                 )
 
-                merged_chunks.extend(image_parts)
+                for image_part in image_parts:
+                    if image_part["token_count"] > max_tokens:
+                        image_parts_to_add = self._split_text_chunk_by_tokens(
+                            image_part,
+                            max_tokens=max_tokens,
+                            count_token=count_token,
+                            overlap_words=20,
+                        )
+                        merged_chunks.extend(image_parts_to_add)
+                    else:
+                        merged_chunks.append(image_part)
                 continue
 
             if meta.get("is_table", False):
