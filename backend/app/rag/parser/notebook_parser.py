@@ -1,9 +1,9 @@
 import json
 from typing import Dict, Any, List
-from rag.parser.markdown_parser import MarkDownParser
-from rag.parser.code_parser import CodeParser
+from app.rag.parser.markdown_parser import MarkDownParser
+from app.rag.parser.code_parser import CodeParser
 from pathlib import Path
-
+import uuid
 
 class NotebookParseError(Exception):
     """Custom exception raised when notebook parsing fails due to invalid structure."""
@@ -97,7 +97,7 @@ class NoteBookParser(MarkDownParser, CodeParser):
 
         return parsed_data
 
-    def parser(self, file_path: Path | None = None):
+    async def parser(self, file_id: uuid.UUID, repo_id: uuid.UUID, file_path: Path | None = None):
         if file_path is not None:
             self.file_path = file_path
 
@@ -115,8 +115,8 @@ class NoteBookParser(MarkDownParser, CodeParser):
         if markdown is not None:
             for md in markdown:
                 if md.get("source", "") != "":
-                    parsed_markdown = MarkDownParser.parser(
-                        self, doc=md.get("source", ""), file_path=self.file_path
+                    parsed_markdown = await MarkDownParser.parser(
+                        self, doc=md.get("source", ""), file_path=self.file_path, file_id=file_id, repo_id=repo_id
                     )
                     if parsed_markdown:
                         for p_md in parsed_markdown:

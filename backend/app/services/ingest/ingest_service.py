@@ -301,7 +301,9 @@ class Ingest(GithubClient):
                                 }
                             )
                             await self.add_file_to_bucket(
-                                file=str(file_path), file_id=file_id, repo_id=self.repo_id
+                                file=str(file_path),
+                                file_id=file_id,
+                                repo_id=self.repo_id,
                             )
                             # chunks_dict.append(tabular_data)
                         else:
@@ -501,7 +503,9 @@ class Ingest(GithubClient):
                         return None
                     elif file_path.suffix == ".ipynb":
                         notebook_parser = NoteBookParser()
-                        parsed_notebook = notebook_parser.parser(file_path=file_path)
+                        parsed_notebook = await notebook_parser.parser(
+                            file_path=file_path, file_id=file_id, repo_id=self.repo_id
+                        )
                         parsed_notebook_md = parsed_notebook.get("markdown", None)
                         parsed_notebook_code = parsed_notebook.get("code", None)
 

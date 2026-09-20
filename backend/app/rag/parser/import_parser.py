@@ -1,4 +1,3 @@
-from fastapi import datastructures
 from tree_sitter import Node
 from pathlib import Path
 from pygments.lexers import get_lexer_for_filename

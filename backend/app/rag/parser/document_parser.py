@@ -1,4 +1,4 @@
-from rag.parser.image_pipeline import VisionFilePipeline
+from app.rag.parser.image_pipeline import VisionFilePipeline
 import zipfile
 import os
 from pptx import Presentation

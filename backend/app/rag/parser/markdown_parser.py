@@ -1,7 +1,8 @@
 from app.rag.parser.parser import Parser
+from app.rag.parser.image_pipeline import VisionFilePipeline
+
 from tree_sitter import Node
 import re
-from app.rag.parser.image_pipeline import VisionFilePipeline
 from pathlib import Path
 import logging
 import uuid
