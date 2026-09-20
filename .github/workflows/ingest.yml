@@ -11,12 +11,9 @@ jobs:
     steps:
       - name: Network Diagnostics
         run: |
-          # Test basic internet reachability (IPv4)
-          ping -c 2 8.8.8.8
-          
-          # Test DNS resolution and connection to your target API/DB host
-          # Replace 'api.groq.com' or 'your-db-host.supabase.co' with your target domain
-          curl -v https://api.groq.com
+          # Use curl instead of ping (ICMP is blocked on GitHub runners)
+          curl -Iv https://api.groq.com
+          curl -Iv https://8.8.8.8
 
       - name: Checkout Repository
         uses: actions/checkout@v4
