@@ -1,5 +1,6 @@
-from sqlalchemy import update, select, delete
+from sqlalchemy import update, delete, func
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.future import select
 
 from app.models.repo_file import RepoFile, FileProcess
 from app.models.file_imports import FileImport
@@ -164,6 +165,7 @@ class IngestDbOps:
                         "file_ext": stmt.excluded.file_ext,
                         "file_category": stmt.excluded.file_category,
                         "status": stmt.excluded.status,
+                        "updated_at": func.now(),
                     },
                 ).returning(RepoFile.file_id, RepoFile.file_path, RepoFile.file_hash)
 
