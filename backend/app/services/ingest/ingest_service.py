@@ -711,7 +711,7 @@ class Ingest(GithubClient):
                 files_to_insert.append(
                     {
                         "repo_id": self.repo_id,
-                        "file_path": relative_path,
+                        "file_path": str(relative_path),
                         "file_name": file_path.name,
                         "file_hash": file_hash,
                         "file_size": file_path.stat().st_size,
