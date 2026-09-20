@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     IMAGE_BUCKET_NAME: str | None = None
     SUPABASE_PROJECT_ID: str | None = None
     SUPABASE_SECRET_KEY: str | None = None
+    GITHUB_USER: str | None = None
+    GITHUB_REPO: str | None = None
+    GITHUB_TOKEN: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE_PATH, env_file_encoding="utf-8", extra="ignore"
