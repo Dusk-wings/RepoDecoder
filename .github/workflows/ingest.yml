@@ -1,0 +1,48 @@
+name: Ingest Repository
+
+on:
+  repository_dispatch:
+    types: [start-ingest]
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set GITHUB_URL variable
+        run: |
+          echo "GITHUB_URL=${{ github.event.client_payload.github_url }}" >> $GITHUB_ENV
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-suffix: "uv"
+
+      - name: Setup Python
+        run: uv python install
+
+      - name: Cache Machine Learning Models & Binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/fastembed
+            ~/.cache/huggingface
+            ~/.cache/docling
+            ~/.cache/pypandoc
+            ~/.local/bin/pandoc
+          key: ${{ runner.os }}-models-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-models-
+
+      - name: Sync Deps using UV
+        run: uv sync --frozen
+
+      - name: Download PyPandoc
+        run: uv run python -c "import pypandoc; pypandoc.download_pandoc()"
+
+      - name: Run Ingest File
+        run: uv run python backend/app/scripts/run_ingest.py
