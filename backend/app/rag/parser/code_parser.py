@@ -1,4 +1,4 @@
-from rag.parser.parser import Parser
+from app.rag.parser.parser import Parser
 from tree_sitter import Node
 from pathlib import Path
 import logging
