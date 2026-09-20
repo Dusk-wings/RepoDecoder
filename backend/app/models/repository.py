@@ -74,7 +74,7 @@ class Repository(Base):
     )
 
     dep_details: Mapped[list["RepoDepDetails"]] = relationship(
-        "RepoDepDetails", back_populates="file", cascade="all, delete-orphan"
+        "RepoDepDetails", back_populates="repo", cascade="all, delete-orphan"
     )
 
     bucket_files: Mapped[list["BucketFile"]] = relationship(
