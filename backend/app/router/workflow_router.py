@@ -17,12 +17,13 @@ router = APIRouter(prefix="/workflow", tags=["Workflow"])
 class WorkSpaceInput(BaseModel):
     github_url: str
 
+db_depends = Annotated[AsyncSession, Depends(get_database)]
 
-@router.post("/start-ingest", response_model=StandardResponse)
+@router.post("/start-ingest", response_model=StandardResponse[None])
 async def start_workflow(
     user: Annotated[UserDetails, Depends(get_current_user)],
     body: Annotated[WorkSpaceInput, Body()],
-    db: Annotated[AsyncSession, Depends(get_database)],
+    db: db_depends,
 ):
     response = await start_ingest_service(github_url=body.github_url, user=user, db=db)
     
@@ -30,4 +31,5 @@ async def start_workflow(
         return {
             "status": response.get("status"),
             "message": response.get("message"),
+            "data": None
         }

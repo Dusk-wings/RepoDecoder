@@ -39,10 +39,16 @@ jobs:
             ${{ runner.os }}-models-
 
       - name: Sync Deps using UV
-        run: uv sync --frozen
+        run: |
+         cd backend
+         uv sync --frozen
 
       - name: Download PyPandoc
-        run: uv run python -c "import pypandoc; pypandoc.download_pandoc()"
+        run: |
+         cd backend
+         uv run python -c "import pypandoc; pypandoc.download_pandoc()"
 
       - name: Run Ingest File
-        run: uv run python backend/app/scripts/run_ingest.py
+        run: |
+         cd backend
+         uv run python app/scripts/run_ingest.py

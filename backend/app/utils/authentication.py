@@ -20,7 +20,7 @@ def get_token(
 
 
 def get_current_user(
-    token: Annotated[str | None, get_token], db: Annotated[AsyncSession, get_database]
+    token: Annotated[str | None, get_token], db: Annotated[AsyncSession, Depends(get_database)]
 ):
     if not token:
         return {"auth": False, "user_id": None, "email": None}

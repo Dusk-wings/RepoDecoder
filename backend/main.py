@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
 
+from app.router.workflow_router import router as workflow_router
+
 app = FastAPI()
 
 allowed_origins = []
@@ -25,3 +27,5 @@ async def validate_user():
         status_code=200,
         content={"message": "Hello, From the server", "time": f"{datetime.now()}"},
     )
+
+app.include_router(workflow_router)

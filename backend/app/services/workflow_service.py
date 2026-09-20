@@ -7,7 +7,7 @@ from app.core.config import env_config
 from app.schemas.user import UserDetails
 
 
-async def start_ingest_service(github_url: str, user: UserDetails, db: AsyncSession):
+async def start_ingest_service(github_url: str, user: UserDetails, db: AsyncSession) -> dict:
     try:
         github_user = env_config.GITHUB_USER
         github_repo = env_config.GITHUB_REPO
