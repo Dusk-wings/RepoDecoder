@@ -624,10 +624,12 @@ class Ingest(GithubClient):
                 if not file_id:
                     raise KeyError("[INJEST-PROCESS-BATCH] FILE-ID IS REQUIRED")
                 if stored_file_path:
+                    logger.info("[BATCH-PROCESSING] FILE PATH: %s", Path(self.target_dir) / stored_file_path)
                     chunks = await self._chunk_file(
                         file_path=Path(self.target_dir) / stored_file_path,
                         file_id=file_id,
                     )
+                    logger.info(f"[BATCH-PROCESSING] CHUNK: {chunks}")
                     if chunks:
                         embedding = self.embedder.generate_embeddings(
                             content=chunks,
