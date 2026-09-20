@@ -204,23 +204,24 @@ class IngestDbOps:
 
     async def _save_deps(
         self,
-        file_path: str,
+        file_id: uuid.UUID,
         language: str,
         deps: list[dict[str, Any]],
         details: dict[str, Any],
     ):
         async with AsyncSessionLocal() as db:
             try:
-                file_id = await db.scalar(
+                does_file_exist = await db.scalar(
                     select(RepoFile.file_id).where(
-                        RepoFile.file_path == file_path,
+                        RepoFile.file_id == file_id,
                         RepoFile.repo_id == self.repo_id,
                     )
                 )
 
-                if file_id is not None:
+                if does_file_exist is not None:
                     for data in deps:
                         data["file_id"] = file_id
+                        data["repo_id"] = self.repo_id
                         data["language"] = language
 
                     repo_dep_query = insert(RepoDepDetails).values(
@@ -237,13 +238,13 @@ class IngestDbOps:
                     await db.commit()
                 else:
                     logger.warning(
-                        "[INJEST-DB-OPS-SAVE-DEPS] FILE %s IS YET NOT PRESENT IN THE DATABASE, DEPS CAN'T BE SAVED",
-                        file_path,
+                        "[INJEST-DB-OPS-SAVE-DEPS] FILE WITH FILE_ID %s IS YET NOT PRESENT IN THE DATABASE, DEPS CAN'T BE SAVED",
+                        file_id,
                     )
             except Exception as e:
                 logger.exception(
-                    "[INJEST-DB-OPS-SAVE-DEPS] FOR FILE %s FAILED TO SAVE THE DEPS, %s",
-                    file_path,
+                    "[INJEST-DB-OPS-SAVE-DEPS] FOR FILE WITH FILE_ID %s FAILED TO SAVE THE DEPS, %s",
+                    file_id,
                     e,
                 )
                 await db.rollback()

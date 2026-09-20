@@ -4,6 +4,7 @@ from pathlib import Path
 import hashlib
 import json
 from openai import OpenAI
+import re
 
 from app.rag.parser.import_parser import ImportParser
 from app.rag.parser.parser import Parser
@@ -28,7 +29,38 @@ from app.core.config import env_config
 
 import asyncio
 
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
+
 logger = logging.getLogger(__name__)
+
+IGNORED_DIRS = {".git", "node_modules", "__pycache__", ".venv", ".target", "build"}
+
+IGNORED_LOCK_FILES = {
+    # Node / JS / Bun / Deno
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "bun.lockb",
+    "deno.lock",
+    # Python
+    "uv.lock",
+    "poetry.lock",
+    "Pipfile.lock",
+    "pdm.lock",
+    # Go
+    "go.sum",
+    # Java / Gradle / Maven
+    "gradle.lockfile",
+    "pom.xml.tag",
+    # Rust / Ruby / PHP / Elixir
+    "Cargo.lock",
+    "Gemfile.lock",
+    "composer.lock",
+    "mix.lock",
+}
+
+# Optional: File extensions for binary/build lock files
+IGNORED_EXTENSIONS = {".lock", ".lockfile"}
 
 ALLOWED_DOC_FORMAT = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -211,6 +243,7 @@ class Ingest(GithubClient):
         # chunks_dict = []
         try:
             category = file_details.get("category", "")
+            # logger.info("[CHUNK-FILE] CATEGORY : %s", category)
             if category == "document":
                 file_format = file_details.get("format", "")
 
@@ -379,16 +412,16 @@ class Ingest(GithubClient):
                         return None
                 elif (
                     code_alias == "modula2"
-                    and file_path.name == "go"
+                    and file_path.stem == "go"
                     and file_path.suffix == ".mod"
                 ):
                     self.dep_parser.set_file_path(file_path=file_path)
                     dependencies = self.dep_parser.parse_go_mod()
                     deps = dependencies.get("dependencies")
                     details = dependencies.get("details")
-                    if deps and details is not None:
+                    if deps is not None and details is not None:
                         await self._save_deps(
-                            file_path=str(file_path),
+                            file_id=file_id,
                             language="go",
                             deps=deps,
                             details=details,
@@ -403,14 +436,14 @@ class Ingest(GithubClient):
                         )
                     return None
 
-                elif code_alias == "xml" and file_path.name == "pom":
+                elif code_alias == "xml" and file_path.stem == "pom":
                     self.dep_parser.set_file_path(file_path=file_path)
                     dependencies = self.dep_parser.parse_pom_xml()
                     deps = dependencies.get("dependencies")
                     details = dependencies.get("details")
-                    if deps and details is not None:
+                    if deps is not None and details is not None:
                         await self._save_deps(
-                            file_path=str(file_path),
+                            file_id=file_id,
                             language="java",
                             deps=deps,
                             details=details,
@@ -424,42 +457,42 @@ class Ingest(GithubClient):
                             file_path=str(file_path), status=FileProcess.failed
                         )
                     return None
-                elif code_alias == "toml" and file_path.name == "pyproject":
+                elif code_alias == "toml" and file_path.stem == "pyproject":
                     self.dep_parser.set_file_path(file_path=file_path)
                     dependencies = self.dep_parser.parse_pyproject_toml()
                     deps = dependencies.get("dependencies")
                     details = dependencies.get("details")
-                    if deps and details is not None:
+                    if deps is not None and details is not None:
                         await self._save_deps(
-                            file_path=str(file_path),
+                            file_id=file_id,
                             language="python",
                             deps=deps,
                             details=details,
                         )
                     else:
                         logger.warning(
-                            "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS FROM FILE %s",
+                            "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS OR DETAILS FROM FILE %s",
                             file_path,
                         )
                         await self._update_file_status(
                             file_path=str(file_path), status=FileProcess.failed
                         )
                     return None
-                elif code_alias == "yaml" and file_path.name == "environment":
+                elif code_alias == "yaml" and file_path.stem == "environment":
                     self.dep_parser.set_file_path(file_path=file_path)
                     dependencies = self.dep_parser.parse_environment_yml()
                     deps = dependencies.get("dependencies")
                     details = dependencies.get("details")
-                    if deps and details is not None:
+                    if deps is not None and details is not None:
                         await self._save_deps(
-                            file_path=str(file_path),
+                            file_id=file_id,
                             language="python",
                             deps=deps,
                             details=details,
                         )
                     else:
                         logger.warning(
-                            "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS FROM FILE %s",
+                            "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS OR DETAILS FROM FILE %s",
                             file_path,
                         )
                         await self._update_file_status(
@@ -480,21 +513,25 @@ class Ingest(GithubClient):
 
             elif category == "data":
                 if file_details.get("mime") == "application/json":
-                    if file_path.name == "package" and file_path.suffix == ".json":
+                    if file_path.stem == "package" and file_path.suffix == ".json":
                         self.dep_parser.set_file_path(file_path=file_path)
                         dependencies = self.dep_parser.parse_package_json()
                         deps = dependencies.get("dependencies")
                         details = dependencies.get("details")
-                        if deps and details is not None:
+
+                        # logger.info("----- GOT SOME DEPS AND DETAILS ------")
+                        # logger.info(deps)
+                        # logger.info(details)
+                        if deps is not None and details is not None:
                             await self._save_deps(
-                                file_path=str(file_path),
+                                file_id=file_id,
                                 language="javascript/typescript",
                                 deps=deps,
                                 details=details,
                             )
                         else:
                             logger.warning(
-                                "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS FROM FILE %s",
+                                "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS OR DETAILS FROM FILE %s",
                                 file_path,
                             )
                             await self._update_file_status(
@@ -551,14 +588,16 @@ class Ingest(GithubClient):
                             )
 
             elif category == "text":
-                if file_path.name == "requirements":
+                # Matches any variation like requirements.txt, dev-requirements.txt, requirements-dev.txt
+                REQUIREMENTS_PATTERN = re.compile(r".*requirement(s)?.*\.txt$", re.IGNORECASE)
+                if REQUIREMENTS_PATTERN.match(file_path.name):
                     self.dep_parser.set_file_path(file_path=file_path)
                     dependencies = self.dep_parser.parse_requirements_txt()
                     deps = dependencies.get("dependencies")
                     details = dependencies.get("details")
-                    if deps and details is not None:
+                    if deps is not None and details is not None:
                         await self._save_deps(
-                            file_path=str(file_path),
+                            file_id=file_id,
                             language="python",
                             deps=deps,
                             details=details,
@@ -566,7 +605,7 @@ class Ingest(GithubClient):
                         return None
                     else:
                         logger.warning(
-                            "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS FROM REQUIREMENT FILE %s, USING GENERAL PARSER",
+                            "[INJEST-CHUNKING] FAILED TO EXTRACT DEPS OR DETAILS FROM REQUIREMENT FILE %s, USING GENERAL PARSER",
                             file_path,
                         )
                         self.parser._set_file_path(file_path=file_path)
@@ -614,7 +653,7 @@ class Ingest(GithubClient):
 
     async def _process_file_batch(self, files: list[dict]) -> None:
         file_ids = [file["file_id"] for file in files if file.get("file_id")]
-
+        logger.info("[BATCH-PROCESSING] STARTED TO PROCESS BATCH OF FILE")
         try:
             all_embedding = []
             embedding_file_ids = []
@@ -624,13 +663,16 @@ class Ingest(GithubClient):
                 if not file_id:
                     raise KeyError("[INJEST-PROCESS-BATCH] FILE-ID IS REQUIRED")
                 if stored_file_path:
-                    logger.info("[BATCH-PROCESSING] FILE PATH: %s", Path(self.target_dir) / stored_file_path)
+                    logger.info(
+                        "[BATCH-PROCESSING] FILE PATH: %s",
+                        Path(self.target_dir) / stored_file_path,
+                    )
                     chunks = await self._chunk_file(
                         file_path=Path(self.target_dir) / stored_file_path,
                         file_id=file_id,
                     )
-                    logger.info(f"[BATCH-PROCESSING] CHUNK: {chunks}")
-                    if chunks:
+                    # logger.info(f"[BATCH-PROCESSING] CHUNK: {chunks}")
+                    if chunks is not None:
                         embedding = self.embedder.generate_embeddings(
                             content=chunks,
                             file_id=file.get("file_id"),
@@ -691,7 +733,10 @@ class Ingest(GithubClient):
             files_to_insert = []
 
             for file_path in self.target_dir.rglob("*"):
-                if not file_path.is_file():
+                if not file_path.is_file() or IGNORED_DIRS.intersection(file_path.parts):
+                    continue
+
+                if file_path.name in IGNORED_LOCK_FILES or file_path.suffix in IGNORED_EXTENSIONS:
                     continue
 
                 relative_path = file_path.relative_to(self.target_dir)

@@ -52,16 +52,16 @@ class Embedder:
                         f"Content item at index {index} must be a dictionary."
                     )
 
-                if "embedding_text" not in item:
+                if "embedding_str" not in item:
                     raise KeyError(
-                        f"Content item at index {index} is missing " "'embedding_text'."
+                        f"CONTENT ITEM AT INDEX {index} IS MISSING " "'embedding_str'"
                     )
 
-                embedding_text = item["embedding_text"]
+                embedding_text = item["embedding_str"]
 
                 if not isinstance(embedding_text, str):
                     raise TypeError(
-                        f"'embedding_text' at index {index} must be a string."
+                        f"'embedding_str' AT INDEX {index} MUST BE A STRING"
                     )
 
                 embedding_texts.append(embedding_text)
@@ -77,15 +77,14 @@ class Embedder:
 
             if len(embeddings) != len(content):
                 raise ValueError(
-                    "The number of generated embeddings does not match the "
-                    "number of content items. "
+                    "THE NUMBER OF GENERATED EMBEDING DOES NOT MATCH THE CONTENT ITEM, "
                     f"Expected {len(content)}, got {len(embeddings)}."
                 )
 
             return [
                 {
                     "content": item["chunk"],
-                    "embedding_text": item["embedding_text"],
+                    "embedding_text": item["embedding_str"],
                     "embedding": embedding.tolist(),
                     "file_id": file_id,
                     "repo_id": repo_id,
