@@ -250,11 +250,17 @@ class IngestDbOps:
     async def save_repo_details(self, github_url: str, details: dict):
         async with AsyncSessionLocal() as db:
             try:
+                raw_created_at = details["created_at"]
+
+                # Convert ISO string to a Python datetime object
+                parsed_repo_created_at = datetime.fromisoformat(
+                    raw_created_at.replace("Z", "+00:00")
+                )
                 data = {
                     "repo_name": details["name"],
                     "repo_full_name": details["full_name"],
                     "description": details["description"],
-                    "repo_created_at": details["created_at"],
+                    "repo_created_at": parsed_repo_created_at,
                     "license": details["license"],
                     "owner": details.get("owner", {}).get("login"),
                     "owner_url": details.get("owner", {}).get("html_url"),
