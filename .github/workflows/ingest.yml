@@ -49,6 +49,8 @@ jobs:
          uv run python -c "import pypandoc; pypandoc.download_pandoc()"
 
       - name: Run Ingest File
+        env:
+          PYTHONPATH: .
         run: |
          cd backend
          uv run python app/scripts/run_ingest.py
