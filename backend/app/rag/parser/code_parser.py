@@ -195,10 +195,13 @@ class CodeParser(Parser):
             merge_all_global_var=merge_all_global_var,
         )
 
-        # # Clean up: Agar koi global variable nahi mila, to khali chunk hata do
-        # if merge_all_global_var and chunks and chunks[0]["kind"] == "global_variables":
-        #     if not chunks[0]["content"].strip():
-        #         chunks.pop(0)
+        if (
+            merge_all_global_var
+            and chunks
+            and chunks[0].get("kind") == "global_variables"
+            and not chunks[0].get("content", "").strip()
+        ):
+            chunks.pop(0)
 
         return chunks
 
@@ -492,9 +495,8 @@ class CodeParser(Parser):
         include_global_var: bool = True,
         group_all_var: bool = True,
     ) -> list[dict] | None:
-        if self.file_path:
-            file_path = self.file_path
         
+
         if not doc and not file_path:
             raise ValueError("PLEASE PROVIDE EITHER THE DOCUMENT DATA OR FILE PATH")
 

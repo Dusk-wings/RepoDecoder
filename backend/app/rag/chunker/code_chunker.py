@@ -78,11 +78,10 @@ class CodeChunker:
             body = node.child_by_field_name("body") or node
             statements = [c for c in body.children if c.is_named]
 
-            signature = ""
-            if node.type in ["function_declaration", "method_declaration"]:
-                signature = source_bytes[node.start_byte : body.start_byte].decode(
-                    "utf-8"
-                )
+            signature = source_bytes[node.start_byte : body.start_byte].decode(
+                "utf-8"
+            )
+            closes_with_brace = source_bytes[body.start_byte : body.start_byte + 1] == b"{"
 
             current_group = []
             part = 1
@@ -91,7 +90,7 @@ class CodeChunker:
                 start = group[0].start_byte
                 end = group[-1].end_byte
                 text = signature + source_bytes[start:end].decode("utf-8")
-                if signature:
+                if closes_with_brace:
                     text += "\n}"
                 return {
                     **clean_chunk,
@@ -192,7 +191,6 @@ class CodeChunker:
             raise ValueError("FILE PATH IS NOT DEFINED")
 
         data = []
-        # data_dict = []
         source_bytes = self.file_path.read_bytes()
 
         for chunk in chunks:
@@ -202,8 +200,9 @@ class CodeChunker:
                 count_tokens=count_tokens,
                 token_limit=token_limit,
             )
-            # data_dict.append(splited_chunk)
             for sc in splited_chunk:
-                data.append({"chunk": sc, "embedding_str": self._create_embeding_text(sc)})
+                data.append(
+                    {"chunk": sc, "embedding_str": self._create_embeding_text(sc)}
+                )
 
         return data
