@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.dependencies import Dependencies
     from app.models.repo_dep_details import RepoDepDetails
     from app.models.bucket_file import BucketFile
+    from app.models.chats import Chats
 
 
 class RepoStatus(str, Enum):
@@ -79,4 +80,8 @@ class Repository(Base):
 
     bucket_files: Mapped[list["BucketFile"]] = relationship(
         "BucketFile", back_populates="repository", cascade="all, delete-orphan"
+    )
+
+    chats: Mapped[list["Chats"]] = relationship(
+        "Chats", back_populates="repository", cascade="all, delete-orphan"
     )

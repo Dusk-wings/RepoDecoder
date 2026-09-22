@@ -9,6 +9,7 @@ import uuid
 if TYPE_CHECKING:
     from models.repository import Repository
     from models.repo_file import RepoFile
+    from models.chat_soruces import ChatSources
 
 
 class Embedding(Base):
@@ -39,4 +40,8 @@ class Embedding(Base):
 
     repo: Mapped["Repository"] = relationship(
         "Repository", back_populates="file_chunks"
+    )
+
+    chats: Mapped[list["ChatSources"]] = relationship(
+        "ChatSources", back_populates="chunk"
     )
