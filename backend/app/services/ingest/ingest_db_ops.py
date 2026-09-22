@@ -91,12 +91,14 @@ class IngestDbOps:
             )
             return {row["file_path"]: row for row in result.mappings().all()}
 
-    async def save_file_imports(self, file_path: str, imports: list[dict]):
+    async def save_file_imports(
+        self, file_path: str, imports: list[dict], file_id: uuid.UUID
+    ):
         async with AsyncSessionLocal() as db:
             try:
                 current_file_id = await db.scalar(
                     select(RepoFile.file_id).where(
-                        RepoFile.file_path == file_path,
+                        RepoFile.file_id == file_id,
                         RepoFile.repo_id == self.repo_id,
                     )
                 )
@@ -134,12 +136,16 @@ class IngestDbOps:
 
                     rows.append(
                         {
-                            "file_id": current_file_id,
                             "imported_file_id": imported_file_id,
-                            "source": item.get("source"),
+                            "file_id": file_id,
+                            "source": item.get("source", ""),
                             "module_alias": item.get("module_alias"),
                             "symbols": item.get("symbols"),
-                            "is_wildcard": item.get("is_wildcard"),
+                            "file_type": item.get("file_type"),
+                            "module": item.get("source", ""),
+                            "resolved_path": item.get("resolved_path") or "",
+                            "is_static": item.get("is_static", False),
+                            "is_wildcard": item.get("is_wildcard", False),
                         }
                     )
 

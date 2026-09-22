@@ -284,11 +284,15 @@ class ImportParser(Parser):
                         return {"category": "internal", "resolved_path": str(candidate)}
                 return {"category": "internal", "resolved_path": None}
 
-            # Handle Aliases (e.g., @/components or ~/utils) by checking up the tree
-            if import_path.startswith("@/") or import_path.startswith("~/"):
-                rel = import_path.split("/", 1)[1]
+            # Handle aliases (e.g., @/components, @user/models, or ~/utils)
+            if import_path.startswith("@") or import_path.startswith("~/"):
+                rel = (
+                    import_path[1:].lstrip("/")
+                    if import_path.startswith("@")
+                    else import_path.split("/", 1)[1]
+                )
                 for base_dir in search_roots:
-                    # Aliases usually point directly to /src/ or the folder itself
+                    # Scoped aliases such as @user/models map to src/user/models.
                     for src_base in (base_dir / "src", base_dir):
                         candidate_base = src_base / rel
                         for suffix in JS_TS_SUFFIXES:
@@ -439,6 +443,14 @@ class ImportParser(Parser):
                     if not value_node:
                         continue
 
+                    dynamic_data = self._check_dynamic_import(value_node)
+                    if dynamic_data:
+                        name_node = declarator.child_by_field_name("name")
+                        if name_node:
+                            dynamic_data["module_alias"] = self._text(name_node)
+                        chunks.append(dynamic_data)
+                        continue
+
                     # Identify if value_node is direct require() or chained require().property
                     req_call_node = None
                     if value_node.type == "call_expression":
@@ -520,16 +532,21 @@ class ImportParser(Parser):
         return {"package": None, "language": self.language, "imports": chunks}
 
     def _check_dynamic_import(self, node: Node):
-        """Helper to find importlib.import_module(...) or __import__(...)"""
+        """Find Python dynamic imports and JavaScript/TypeScript import()."""
 
         # If passed an assignment node, extract the call node from the right-hand side
         call_node = node
-        if node.type == "assignment":
+        if node.type in ("assignment", "variable_declarator"):
             call_node = node.child_by_field_name("right")
+            if not call_node:
+                call_node = node.child_by_field_name("value")
             if not call_node or call_node.type != "call":
-                call_node = next((c for c in node.children if c.type == "call"), None)
+                call_node = next(
+                    (c for c in node.children if c.type in ("call", "call_expression")),
+                    None,
+                )
 
-        if not call_node or call_node.type != "call":
+        if not call_node or call_node.type not in ("call", "call_expression"):
             return None
 
         func_node = call_node.child_by_field_name("function")
@@ -538,26 +555,34 @@ class ImportParser(Parser):
 
         func_text = self._text(func_node)
 
-        # Check if it's importlib.import_module or __import__
-        if func_text in ("importlib.import_module", "__import__"):
+        is_python_dynamic_import = func_text in (
+            "importlib.import_module",
+            "__import__",
+        )
+        is_js_dynamic_import = (
+            self.language in ("javascript", "typescript") and func_text == "import"
+        )
+
+        if is_python_dynamic_import or is_js_dynamic_import:
             args_node = call_node.child_by_field_name("arguments")
             if args_node and args_node.children:
-                # Pehla argument package/module ka name hota hai
                 for arg in args_node.children:
-                    # Skip commas and parentheses
                     if arg.type in ("(", ")", ","):
                         continue
 
                     mod_name = None
                     if arg.type == "string":
-                        # Quotes (' ' ya " ") hatana
-                        mod_name = self._text(arg).strip("'\"")
+                        mod_name = self._text(arg).strip("'\"`")
                     elif arg.type in ("identifier", "dotted_name"):
-                        # For variables like module_name
                         mod_name = self._text(arg)
 
                     if mod_name:
-                        resolved_import = self._resolve_import(mod_name, "python")
+                        language = (
+                            "javascript"
+                            if is_js_dynamic_import
+                            else "python"
+                        )
+                        resolved_import = self._resolve_import(mod_name, language)
                         file_type = resolved_import.get("category", "unknown")
                         resolved_path = resolved_import.get("resolved_path", None)
                         return {

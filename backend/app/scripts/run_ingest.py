@@ -10,4 +10,6 @@ async def main(url: str):
 
 if __name__ == "__main__":
     github_url = os.getenv("GITHUB_URL")
+    if not github_url:
+        raise ValueError("[INGEST] THE GITHUB URL IS NOT DEFINED")
     asyncio.run(main(url=github_url or ""))

@@ -87,9 +87,6 @@ class Ingest(GithubClient):
     def __init__(self, github_url: str) -> None:
         super().__init__(github_url=github_url)
 
-        self.repo_id: uuid.UUID | None = None
-        self.repo_name: str | None = None
-
         self.parser = Parser()
         self.import_extractor = ImportParser(self.absolute_path)
         self.file_inspector = FileInspector()
@@ -166,7 +163,7 @@ class Ingest(GithubClient):
             )
             raise
 
-    async def _extract_file_imports(self, file_path: Path):
+    async def _extract_file_imports(self, file_path: Path, file_id: uuid.UUID):
         if not file_path.exists():
             logger.warning(
                 "[INJEST-EXTRACT-IMPORTS] FILE PATH DOES NOT EXIST: %s",
@@ -182,17 +179,39 @@ class Ingest(GithubClient):
             result = await asyncio.to_thread(
                 self.import_extractor.extract_imports, file_path
             )
-            raw_imports = result.get("imports")
-            imports: list[dict] = (
-                [item for item in raw_imports if isinstance(item, dict)]
-                if isinstance(raw_imports, list)
-                else []
-            )
+            logger.info("[OUTPUT]: %s", result)
+            file_imports = []
+            raw_imports = result.get("imports", [])
+            for imp in raw_imports:
+                if not isinstance(imp, dict):
+                    continue
 
-            if not imports:
+                file_imports.append(
+                    {
+                        "file_id": file_id,
+                        "source": imp["source"],
+                        "module_alias": imp.get("module_alias"),
+                        "symbols": imp["symbols"],
+                        "file_type": imp.get("file_type"),
+                        "module": imp.get("source", ""),
+                        "resolved_path": imp.get("resolved_path") or "",
+                        "is_static": imp.get("is_static", False),
+                        "is_wildcard": imp.get("is_wildcard", False),
+                    }
+                )
+
+            # imports: list[dict] = (
+            #     [item for item in raw_imports if isinstance(item, dict)]
+            #     if isinstance(raw_imports, list)
+            #     else []
+            # )
+
+            if not file_imports:
                 return
 
-            await self.save_file_imports(file_path=str(file_path), imports=imports)
+            await self.save_file_imports(
+                file_path=str(file_path), imports=file_imports, file_id=file_id
+            )
 
         except ValueError as e:
             logger.exception(
@@ -243,7 +262,8 @@ class Ingest(GithubClient):
         # chunks_dict = []
         try:
             category = file_details.get("category", "")
-            # logger.info("[CHUNK-FILE] CATEGORY : %s", category)
+            logger.info("[CHUNK-FILE] FILE PATH: %s", file_path)
+            logger.info("[CHUNK-FILE] CATEGORY : %s", category)
             if category == "document":
                 file_format = file_details.get("format", "")
 
@@ -364,13 +384,25 @@ class Ingest(GithubClient):
             elif category == "code":
                 code_alias = file_details.get("language_alias", "")
                 if code_alias in ALLOWED_CODE_FORMAT:
+                    await self._extract_file_imports(
+                        file_path=file_path, file_id=file_id
+                    )
                     parsed_code = self.code_parser.parser(file_path=file_path, doc=None)
-                    code_chunker = CodeChunker(self.parser.extension_to_language_name)
+                    code_chunker = CodeChunker(
+                        self.code_parser.extension_to_language_name
+                    )
                     if parsed_code:
                         chunks = code_chunker.create_code_embeding_content(
                             chunks=parsed_code,
                             file_path=file_path,
                             count_tokens=self.embedder.count_tokens,
+                        )
+                        logger.info(
+                            "[CHUNK-PROVENANCE] FILE=%s LANGUAGE=%s CHUNKS=%d FIRST=%s",
+                            file_path,
+                            self.code_parser.language,
+                            len(chunks),
+                            chunks[0]["embedding_str"][:180] if chunks else "<none>",
                         )
 
                     else:
@@ -560,7 +592,7 @@ class Ingest(GithubClient):
                             )
                         if parsed_notebook_code is not None:
                             code_chunker = CodeChunker(
-                                self.file_inspector.extension_to_language_name
+                                self.code_parser.extension_to_language_name
                             )
 
                             chunks.extend(
@@ -589,7 +621,9 @@ class Ingest(GithubClient):
 
             elif category == "text":
                 # Matches any variation like requirements.txt, dev-requirements.txt, requirements-dev.txt
-                REQUIREMENTS_PATTERN = re.compile(r".*requirement(s)?.*\.txt$", re.IGNORECASE)
+                REQUIREMENTS_PATTERN = re.compile(
+                    r".*requirement(s)?.*\.txt$", re.IGNORECASE
+                )
                 if REQUIREMENTS_PATTERN.match(file_path.name):
                     self.dep_parser.set_file_path(file_path=file_path)
                     dependencies = self.dep_parser.parse_requirements_txt()
@@ -733,10 +767,15 @@ class Ingest(GithubClient):
             files_to_insert = []
 
             for file_path in self.target_dir.rglob("*"):
-                if not file_path.is_file() or IGNORED_DIRS.intersection(file_path.parts):
+                if not file_path.is_file() or IGNORED_DIRS.intersection(
+                    file_path.parts
+                ):
                     continue
 
-                if file_path.name in IGNORED_LOCK_FILES or file_path.suffix in IGNORED_EXTENSIONS:
+                if (
+                    file_path.name in IGNORED_LOCK_FILES
+                    or file_path.suffix in IGNORED_EXTENSIONS
+                ):
                     continue
 
                 relative_path = file_path.relative_to(self.target_dir)
