@@ -39,8 +39,8 @@ class FileImport(Base):
     file_type: Mapped[FileType] = mapped_column(
         SQLEnum(FileType, name="file_type_name")
     )
-    module: Mapped[str] = mapped_column(Text)
-    resolved_path: Mapped[str] = mapped_column(Text)
+    module: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_static: Mapped[bool] = mapped_column(default=False)
     is_wildcard: Mapped[bool] = mapped_column(default=False)
