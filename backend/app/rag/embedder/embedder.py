@@ -66,6 +66,7 @@ class Embedder:
 
                 embedding_texts.append(embedding_text)
 
+            logger.info('[EMBEDDER] EMBEDING FILE ID %s', file_id)
             # `embed()` returns a generator of NumPy arrays.
             embeddings_generator = self.embedder.embed(
                 embedding_texts,
@@ -94,4 +95,17 @@ class Embedder:
 
         except Exception:
             logger.exception("[EMBEDDER] ERROR GENERATING EMBEDDINGS")
+            raise
+
+    def embed(self, text: str):
+        if not text:
+            raise ValueError("[EMBEDDER] PLEASE DEFINE THE CONTENT TO EMBED")
+
+        try:
+            embedding = self.embedder.embed(text, parallel=None)
+            return embedding
+        except Exception as e:
+            logger.exception(
+                "[EMBEDDER] UNABLE TO GENERATE THE EMBEDDING, ERROR: %s", e
+            )
             raise
