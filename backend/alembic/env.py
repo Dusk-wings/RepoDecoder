@@ -50,12 +50,23 @@ def render_item(type_, obj, autogen_context):
     return False
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    # Prevent Alembic from creating, dropping, or altering ANY object in the 'auth' schema
+    if type_ == "table":
+        if getattr(object, "schema", None) == "auth" or name == "users":
+            return False
+            
+    return True
+
+
 def do_run_migrations(connection: Connection):
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
         render_item=render_item,
+        include_object=include_object,  # <--- ADD THIS
+        include_schemas=True,
     )
 
     with context.begin_transaction():
@@ -93,7 +104,9 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        compare_server_default=True
+        compare_server_default=True,
+        include_object=include_object,
+        include_schemas=True,
     )
 
     with context.begin_transaction():

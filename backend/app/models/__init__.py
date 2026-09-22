@@ -6,3 +6,8 @@ from app.models.repo_dep_details import RepoDepDetails
 from app.models.repo_file import RepoFile
 from app.models.repository import Repository
 from app.models.bucket_file import BucketFile
+from app.models.user_repo import UserRepo
+from app.models.chats import Chats
+from app.models.conversation import Conversation
+from app.models.chat_soruces import ChatSources
+from app.models.auth_user import AuthUser

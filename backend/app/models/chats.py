@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.models.repository import Repository
     from app.models.conversation import Conversation
+    from app.models.user_repo import UserRepo
 
 
 class Chats(Base):
@@ -16,15 +17,8 @@ class Chats(Base):
 
     chat_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    repo_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("repository.repo_id", ondelete="CASCADE"),
-        nullable=False,
+    user_repo_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_repo.user_repo_id", ondelete="CASCADE")
     )
 
     chat_name: Mapped[str] = mapped_column(VARCHAR(150))
@@ -34,11 +28,7 @@ class Chats(Base):
         DateTime, server_default=func.now(), onupdate=func.now()
     )
 
-    repository: Mapped["Repository"] = relationship(
-        "Repository", back_populates="chats"
+    users: Mapped["UserRepo"] = relationship(
+        "UserRepo",
+        back_populates="chats",
     )
-
-    conversation: Mapped["Conversation"] = relationship(
-        "Conversation", back_populates="chat", cascade="all, delete-orphan"
-    )
-    
