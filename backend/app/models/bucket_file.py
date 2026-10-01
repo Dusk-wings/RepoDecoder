@@ -26,6 +26,11 @@ class BucketFileType(str, Enum):
     spread_sheat = "SPREAD_SHEAT"
 
 
+class BucketType(str, Enum):
+    public = "PUBLIC"
+    private = "PRIVATE"
+
+
 class BucketFile(Base):
     __tablename__ = "bucket_file"
 
@@ -45,6 +50,9 @@ class BucketFile(Base):
 
     url: Mapped[str] = mapped_column(Text, nullable=False)
     bucket_key: Mapped[str] = mapped_column(Text, nullable=False)
+
+    bucket_name: Mapped[str] = mapped_column(Text, nullable=False)
+
     file_type: Mapped[BucketFileType] = mapped_column(
         SQLEnum(BucketFileType), default=BucketFileType.image
     )
