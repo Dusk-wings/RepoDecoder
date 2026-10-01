@@ -144,7 +144,7 @@ class Tools(SpreadSheetAnalyzer):
             )
             return {"status": "error", "message": "INTERNAL SERVER ERROR", "data": None}
 
-    def get_tool_defination(self):
+    def get_tool_defination(self) -> list:
         spread_sheet_tool = {
             "type": "function",
             "function": {
@@ -254,7 +254,7 @@ class Tools(SpreadSheetAnalyzer):
                             "type": "string",
                             "description": (
                                 "The dependency name to search for, "
-                                "such as requests or django."
+                                "such as requests or django or react."
                             ),
                         }
                     },
@@ -329,3 +329,9 @@ class Tools(SpreadSheetAnalyzer):
             )
 
             return result
+        else:
+            return {
+                "status": "error",
+                "message": f"UNDEFINED FUNCTION NAME {tool_name}",
+                "data": None,
+            }

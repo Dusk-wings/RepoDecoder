@@ -1,11 +1,15 @@
-from app.models.embedding import Embedding
-from app.models.repo_file import RepoFile
 from sqlalchemy.future import select
 from sqlalchemy import func, Select
-from app.core.db import AsyncSessionLocal
-from app.core.config import env_config
-from openai import OpenAI
+
 import logging
+
+from app.core.config import env_config
+from app.core.db import AsyncSessionLocal
+
+from app.models.repo_file import RepoFile
+from app.models.embedding import Embedding
+
+from app.rag.generator.generator import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -142,22 +146,18 @@ class Retrival:
             raise
 
     def _rewrite_query(self, query: str):
-        groq_connector = OpenAI(
-            api_key=env_config.GROQ_API_KEY,
-            base_url="https://api.groq.com/openai/v1",
-        )
 
-        new_query = groq_connector.chat.completions.create(
-            model="qwen/qwen3.8-27b",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a profesional prompt writer, who is specialized in writing prompt for the RAG system and you need to rewrite the prompt given to you. The prompt is supposed to do retrival from a database, your role is to rewrite the prompt in a way that the retrival becomes way better then what it is now, the user will give a prompt you will enhance it and even use some other word terminolgies so that the correct retrival can be done, just return the prompt and nothing else should be returned by you. Rembember just a good prompt, nothing else. Maintain the user's original intent but vastly improve clarity and depth.",
-                },
-                {"role": "user", "content": query},
-            ],
-        )
-        new_prompt = new_query.choices[0].message.content
+        generator = Generator()
+
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a profesional prompt writer, who is specialized in writing prompt for the RAG system and you need to rewrite the prompt given to you. The prompt is supposed to do retrival from a database, your role is to rewrite the prompt in a way that the retrival becomes way better then what it is now, the user will give a prompt you will enhance it and even use some other word terminolgies so that the correct retrival can be done, just return the prompt and nothing else should be returned by you. Rembember just a good prompt, nothing else. Maintain the user's original intent but vastly improve clarity and depth.",
+            },
+            {"role": "user", "content": query},
+        ]
+
+        new_prompt = generator.LLM(model="groq/qwen/qwen3.8-27b", messages=messages)
         return new_prompt
 
     async def retrive(self, query: str, embeded_query: list[float]):

@@ -370,6 +370,12 @@ class SpreadSheetAnalyzer:
                         "message": "DATA FILTERED",
                         "data": filtered_data,
                     }
+                else:
+                    return {
+                        "status": "error",
+                        "message": "UNABLE TO FETCH THE REQUIRED DETAILS OF FILE, SERVER ERROR",
+                        "data": None,
+                    }
             else:
                 raise NotFoundError(
                     "OPERATION FAILED, UNABLE TO LOCATE THE FILE IN THE OBJECT STORE, PROBLEM IN PARAMETER"
