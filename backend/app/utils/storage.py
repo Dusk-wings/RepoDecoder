@@ -6,12 +6,18 @@ from tusclient.exceptions import TusCommunicationError
 import logging
 import time
 import uuid
+from supabase import AsyncClient
 
 from app.core.config import env_config
 from app.core.db import AsyncSessionLocal
-from app.models.bucket_file import BucketFile, BucketFileType
+from app.models.bucket_file import BucketFile, BucketFileType, BucketType
+
+from app.errors.serverError import ServerError
+
+# from app.core.supabase import supabase_client
 
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.future import select
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +25,23 @@ GENERIC_TYPES = {"application/octet-stream", "text/plain", "application/x-empty"
 
 
 class BucketStorage:
+    @staticmethod
+    def get_mime_type(file_path: Path):
+        try:
+            mime_type = magic.from_file(filename=file_path, mime=True)
+        except Exception as e:
+            logger.warning(
+                "[BUCKET-STORAGE] MAGIC FAILED TO GET THE MIME-TYPE OF THE FILE GETTING THE DEFAULT"
+            )
+            mime_type = None
+
+        if not mime_type or mime_type in GENERIC_TYPES:
+            guessed_type, _ = mimetypes.guess_type(file_path)
+            if guessed_type:
+                mime_type = guessed_type
+
+        if not mime_type:
+            mime_type = "application/octet-stream"
 
     @staticmethod
     def store_file(
@@ -32,21 +55,7 @@ class BucketStorage:
         "Given the file path, stores the file to the SupaBase Object Store"
 
         if file_path:
-            try:
-                mime_type = magic.from_file(filename=file_path, mime=True)
-            except Exception as e:
-                logger.warning(
-                    "[BUCKET-STORAGE] MAGIC FAILED TO GET THE MIME-TYPE OF THE FILE GETTING THE DEFAULT"
-                )
-                mime_type = None
-
-            if not mime_type or mime_type in GENERIC_TYPES:
-                guessed_type, _ = mimetypes.guess_type(file_path)
-                if guessed_type:
-                    mime_type = guessed_type
-
-            if not mime_type:
-                mime_type = "application/octet-stream"
+            mime_type = BucketStorage.get_mime_type(file_path=file_path)
 
             tus_endpoint = f"https://{env_config.SUPABASE_PROJECT_ID}.storage.supabase.co/storage/v1/upload/resumable"
 
@@ -114,6 +123,7 @@ class BucketStorage:
         url: str,
         storage_key: str,
         file_type: BucketFileType,
+        bucket_name: str,
     ):
         logger.info("[BUCKET-FILE-UPDATE] STARTING THE FILE SAVE OPERATION")
         async with AsyncSessionLocal() as db:
@@ -124,6 +134,7 @@ class BucketStorage:
                     url=url,
                     bucket_key=storage_key,
                     file_type=file_type,
+                    bucket_name=bucket_name,
                 )
 
                 stmt = stmt.on_conflict_do_update(
@@ -142,3 +153,46 @@ class BucketStorage:
 
                 await db.rollback()
                 raise
+
+    @staticmethod
+    async def get_signed_url(
+        supabase_client: AsyncClient,
+        repo_id: uuid.UUID,
+        file_id: uuid.UUID,
+        url: str,
+        file_type: BucketFileType,
+        bucket_name: str,
+        bucket_type: BucketType,
+    ):
+        async with AsyncSessionLocal() as db:
+            try:
+                stmt = select(BucketFile.bucket_key).where(
+                    BucketFile.repo_id == repo_id,
+                    BucketFile.file_id == file_id,
+                    BucketFile.url == url,
+                    BucketFile.file_type == file_type,
+                    BucketFile.bucket_name == bucket_name,
+                )
+
+                result = await db.execute(stmt)
+                bucket_key = result.scalar()
+            except:
+                logger.exception("[GET-SIGNED-URL] UNABLE TO GET THE BUCKET KEY")
+                raise ServerError("INTERNAL SERVER ERROR")
+
+        if bucket_key:
+            if bucket_type == "PRIVATE":
+                supabase_url = await supabase_client.storage.from_(
+                    bucket_name or ""
+                ).create_signed_url(bucket_key, expires_in=300)
+
+                supabase_url = supabase_url.get("signedURL")
+            else:
+                supabase_url = await supabase_client.storage.from_(
+                    bucket_name or ""
+                ).get_public_url(bucket_key)
+
+            return {"url": supabase_url, "bucket_key": bucket_key}
+
+        else:
+            raise ValueError("[GET-SIGNED-URL] THE OBJECT DOES NOT EXIST")
