@@ -1,12 +1,25 @@
 from fastapi import FastAPI
-from app.core.config import env_config
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
+from contextlib import asynccontextmanager
+
+from app.core.config import env_config
+from app.core.supabase import get_supabase_async_client, close_supabase_async_client
 
 from app.router.workflow_router import router as workflow_router
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await get_supabase_async_client()
+
+    yield
+
+    await close_supabase_async_client()
+
+
+app = FastAPI(lifespan=lifespan)
 
 allowed_origins = []
 if env_config.ALLOWED_ORIGIN:
@@ -27,5 +40,6 @@ async def validate_user():
         status_code=200,
         content={"message": "Hello, From the server", "time": f"{datetime.now()}"},
     )
+
 
 app.include_router(workflow_router)
