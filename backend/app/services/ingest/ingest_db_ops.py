@@ -340,6 +340,7 @@ class IngestDbOps:
                 url=file,
                 storage_key=object_name,
                 file_type=BucketFileType.spread_sheat,
+                bucket_name=env_config.SPREADSHEAT_BUCKET_NAME or "",
             )
         except Exception as e:
             logging.exception(

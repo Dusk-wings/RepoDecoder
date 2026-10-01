@@ -19,6 +19,7 @@ from app.models.bucket_file import BucketFileType
 
 logger = logging.getLogger(__name__)
 
+
 class VisionFilePipeline:
     def __init__(
         self,
@@ -168,9 +169,7 @@ class VisionFilePipeline:
             return
 
         time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        object_name = (
-            f"{repo_id}/{file_id}/{uuid.uuid4}-{time}{image_file_path.suffix}"
-        )
+        object_name = f"{repo_id}/{file_id}/{uuid.uuid4}-{time}{image_file_path.suffix}"
 
         bucket_name = "bucket"
         if env_config.IMAGE_BUCKET_NAME:
@@ -190,9 +189,9 @@ class VisionFilePipeline:
                     file_id=file_id,
                     repo_id=repo_id,
                     url=url,
-                    storage_key=bucket_url,
+                    storage_key=object_name,
                     file_type=BucketFileType.image,
+                    bucket_name=env_config.IMAGE_BUCKET_NAME or "",
                 )
         except Exception as e:
             logger.exception("[SAVE-IMAGE] OPERATION FAILED WITH EXCEPTION, %s", e)
-            
