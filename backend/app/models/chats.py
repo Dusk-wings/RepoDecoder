@@ -1,5 +1,5 @@
 from app.core.db import Base
-from sqlalchemy import UUID, ForeignKey, VARCHAR, ARRAY, Enum, DateTime, func
+from sqlalchemy import UUID, ForeignKey, VARCHAR, ARRAY, Enum, DateTime, func, Boolean
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
 import enum
@@ -22,6 +22,7 @@ class Chats(Base):
     )
 
     chat_name: Mapped[str] = mapped_column(VARCHAR(150))
+    named_by_user: Mapped[bool] = mapped_column(Boolean, default=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -31,4 +32,7 @@ class Chats(Base):
     users: Mapped["UserRepo"] = relationship(
         "UserRepo",
         back_populates="chats",
+    )
+    conversation: Mapped[list["Conversation"]] = relationship(
+        "Conversation", back_populates="chat"
     )

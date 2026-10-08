@@ -15,7 +15,7 @@ class UserRepo(Base):
     __tablename__ = "user_repo"
 
     user_repo_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.UUID
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(

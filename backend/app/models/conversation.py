@@ -31,7 +31,7 @@ class Conversation(Base):
     )
 
     query: Mapped[str] = mapped_column(Text, nullable=False)
-    response: Mapped[str] = mapped_column(Text, nullable=False)
+    response: Mapped[str] = mapped_column(Text, nullable=True)
     models: Mapped[str] = mapped_column(Text, nullable=False)
 
     status: Mapped[str] = mapped_column(SqlEnum(Status), default=Status.NONE)

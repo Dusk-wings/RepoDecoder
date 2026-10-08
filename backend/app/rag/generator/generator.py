@@ -4,6 +4,7 @@ import json
 from uuid import UUID
 from typing import Any, AsyncGenerator, Optional
 import logging
+import asyncio
 
 from app.core.config import env_config
 from app.rag.generator.tools import Tools
@@ -35,18 +36,19 @@ class Generator:
         pass
 
     def get_chat_client(self, provider: str):
+        logger.info("[LLM-CLIENT] CREATING LLM CLIENT")
         client = openai.AsyncOpenAI(
-            base_url=self.google_base_url if provider == "groq" else self.groq_base_url,
+            base_url=self.groq_base_url if provider == "groq" else self.google_base_url,
             api_key=(
-                env_config.GEMINI_API_KEY
+                env_config.GROQ_API_KEY
                 if provider == "groq"
-                else env_config.GROQ_API_KEY
+                else env_config.GEMINI_API_KEY
             ),
         )
-
+        logger.info("[LLM-CLIENT] LLM CLIENT CREATED")
         return client
 
-    async def LLM(self, model: str, messages: list):
+    async def LLM(self, model: str, messages: list, max_tokens: int | None = None):
         if model not in self.models:
             return {"type": "error", "content": f"Model '{model}' is not supported."}
 
@@ -55,7 +57,9 @@ class Generator:
             client = self.get_chat_client(provider=provider)
 
             response = await client.chat.completions.create(
-                model=provided_model, messages=messages
+                model=provided_model,
+                messages=messages,
+                max_completion_tokens=max_tokens,
             )
 
             return {"type": "success", "content": response.choices[0].message}
@@ -86,6 +90,7 @@ class Generator:
         model: str,
         bucket_client: AsyncClient,
         repo_id: UUID,
+        stop_event: asyncio.Event,
         messages: Optional[list] = None,
         max_iter: int = MAX_ITER,
     ) -> AsyncGenerator[dict[str, Any], None]:
@@ -102,6 +107,10 @@ class Generator:
         tool_schema = tools.get_tool_defination()
 
         for iteration in range(max_iter):
+            # After the finish or the iteration or after the first call or at the start the user can cancel the generation
+            if stop_event.is_set():
+                return
+
             content_chunks = []
             tool_calls_accumulator = {}
             try:
@@ -114,6 +123,10 @@ class Generator:
                 )
 
                 async for chunk in response_stream:
+                    # Can be cancelded before even the genration of a single chunk, or in the mid of genration - breaking to connect all the chunks that are generated
+                    if stop_event.is_set():
+                        break
+
                     if not chunk.choices:
                         continue
 
@@ -144,6 +157,10 @@ class Generator:
                                 tool_calls_accumulator[idx][
                                     "arguments"
                                 ] += tc_delta.function.arguments
+
+            except asyncio.CancelledError:
+                logger.info("[LLM-GENERATOR] GENERATION IS CANCELED")
+                raise
 
             except openai.RateLimitError as e:
                 logger.exception("[LLM-GENERATOR]: %s", e)
@@ -190,11 +207,15 @@ class Generator:
             messages.append(assistant_message)
 
             if not tool_calls_accumulator:
-                print("\n\n[Agent Finished]")
+                if stop_event.is_set():
+                    return
+
+                logger.info("[LLM-GENERATOR]: AGENT FINISHED EXECUTION")
                 yield {"type": "end", "content": "--[END-RESPONSE-COMPLETE]--"}
                 return
 
             for tc in assistant_message["tool_calls"]:
+
                 function_name = tc["function"]["name"]
                 try:
                     function_args = json.loads(tc["function"]["arguments"])
@@ -202,6 +223,10 @@ class Generator:
                     function_args = {}
 
                 yield {"type": "tool_call", "name": function_name}
+
+                # Suppose the user canceled after yield so don't need to run the heavy computation
+                if stop_event.is_set():
+                    return
 
                 try:
                     tool_result = await tools.use_tool(

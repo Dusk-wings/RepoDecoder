@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from app.models.dependencies import Dependencies
     from app.models.repo_dep_details import RepoDepDetails
     from app.models.bucket_file import BucketFile
+    from app.models.chat_soruces import ChatSources
 
 
 class FileProcess(str, Enum):
@@ -97,4 +98,8 @@ class RepoFile(Base):
 
     bucket_files: Mapped[list["BucketFile"]] = relationship(
         "BucketFile", back_populates="file", cascade="all, delete-orphan"
+    )
+
+    chats: Mapped[list["ChatSources"]] = relationship(
+        "ChatSources", back_populates="file", cascade="all, delete-orphan"
     )

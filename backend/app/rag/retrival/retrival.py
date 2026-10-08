@@ -2,6 +2,8 @@ from sqlalchemy.future import select
 from sqlalchemy import func, Select
 
 import logging
+from collections.abc import Sequence
+import numpy as np
 
 from app.core.config import env_config
 from app.core.db import AsyncSessionLocal
@@ -58,7 +60,7 @@ class Retrival:
             )
             raise
 
-    async def _retrive_by_vector_distance(self, embeded_query: list[float]):
+    async def _retrive_by_vector_distance(self, embeded_query):
         distance = Embedding.vector.cosine_distance(embeded_query).label("distance")
         stmt = (
             select(
@@ -145,7 +147,7 @@ class Retrival:
             )
             raise
 
-    def _rewrite_query(self, query: str):
+    async def _rewrite_query(self, query: str):
 
         generator = Generator()
 
@@ -157,13 +159,15 @@ class Retrival:
             {"role": "user", "content": query},
         ]
 
-        new_prompt = generator.LLM(model="groq/qwen/qwen3.8-27b", messages=messages)
+        new_prompt = await generator.LLM(model="groq/qwen/qwen3.8-27b", messages=messages)
         return new_prompt
 
-    async def retrive(self, query: str, embeded_query: list[float]):
+    async def retrive(self, query: str, embedded_query, top_chunk: int = 20):
         try:
+            searcher = list(embedded_query)[0].tolist()
+
             vector_chunks = await self._retrive_by_vector_distance(
-                embeded_query=embeded_query
+                embeded_query=searcher
             )
             lexical_chunks = await self._retrive_by_trigram_similarity(query=query)
             fts_chunks = await self._retrive_by_fts(query=query)
@@ -174,7 +178,7 @@ class Retrival:
                 id_key="embed_id",
             )
 
-            return top_chunks
+            return top_chunks[:top_chunk]
 
         except Exception as e:
             logger.exception(
