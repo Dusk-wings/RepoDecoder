@@ -405,6 +405,16 @@ class Ingest(GithubClient):
                     code_chunker = CodeChunker(
                         self.code_parser.extension_to_language_name
                     )
+                    if not parsed_code:
+                        logger.warning(
+                            "[INJEST-CHUNKING] AST CHUNKING PRODUCED NO CHUNKS FOR %s; USING TEXT FALLBACK",
+                            file_path,
+                        )
+                        self.parser._set_file_path(file_path=file_path)
+                        parsed_code = self.parser.general_parser(
+                            self.embedder.count_tokens
+                        )
+
                     if parsed_code:
                         chunks = code_chunker.create_code_embeding_content(
                             chunks=parsed_code,

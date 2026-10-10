@@ -520,6 +520,18 @@ class CodeParser(Parser):
                 include_all_globals=include_global_var,
                 merge_all_global_var=group_all_var,
             )
+            # if not chunks and self.source_bytes and self.source_bytes.strip():
+            #     chunks.append(
+            #         {
+            #             "_node": ast.root_node,
+            #             "kind": "module",
+            #             "name": self.file_path.stem if self.file_path else "module",
+            #             "comment": None,
+            #             "content": self._text(ast.root_node),
+            #             "start_line": ast.root_node.start_point[0],
+            #             "end_line": ast.root_node.end_point[0],
+            #         }
+            #     )
             return chunks
 
         except Exception as e:
