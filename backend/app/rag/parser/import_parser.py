@@ -306,7 +306,7 @@ class ImportParser(Parser):
                                     "category": "internal",
                                     "resolved_path": str(candidate),
                                 }
-                return {"category": "internal", "resolved_path": None}
+                return {"category": "external", "resolved_path": None}
 
             return {"category": "external", "resolved_path": None}
 
