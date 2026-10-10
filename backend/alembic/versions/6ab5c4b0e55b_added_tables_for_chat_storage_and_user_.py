@@ -61,7 +61,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['embed_id'], ['embedding.embed_id'], ),
     sa.PrimaryKeyConstraint('source_id')
     )
-    op.drop_index(op.f('idx_embedding_chunk_str_trgm'), table_name='embedding', postgresql_ops={'chunk_str': 'gin_trgm_ops'}, postgresql_using='gin')
+    op.drop_index(op.f('idx_embedding_chunk_str_trgm'), table_name='embedding', postgresql_ops={'chunk_str': 'gin_trgm_ops'}, if_exists=True, postgresql_using='gin')
     op.alter_column('file_import', 'module',
                existing_type=sa.TEXT(),
                nullable=True)

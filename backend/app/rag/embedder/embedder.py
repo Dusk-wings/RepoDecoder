@@ -66,7 +66,7 @@ class Embedder:
 
                 embedding_texts.append(embedding_text)
 
-            logger.info('[EMBEDDER] EMBEDING FILE ID %s', file_id)
+            # logger.info('[EMBEDDER] EMBEDING FILE ID %s', file_id)
             # `embed()` returns a generator of NumPy arrays.
             embeddings_generator = self.embedder.embed(
                 embedding_texts,
