@@ -179,13 +179,19 @@ class Ingest(GithubClient):
             result = await asyncio.to_thread(
                 self.import_extractor.extract_imports, file_path
             )
-            logger.info("[OUTPUT]: %s", result)
+            # logger.info("[OUTPUT]: %s", result)
             file_imports = []
             raw_imports = result.get("imports", [])
             for imp in raw_imports:
                 if not isinstance(imp, dict):
                     continue
 
+                path = imp.get("resolved_path")
+                resolved_path = path.resolved_path(self.target_dir).as_posix() if path is not None else ""
+
+                # logger.info("[INJEST-EXTRACT-IMPORTS] RESOLVED PATH: %s", resolved_path)
+
+                
                 file_imports.append(
                     {
                         "file_id": file_id,
@@ -194,7 +200,7 @@ class Ingest(GithubClient):
                         "symbols": imp["symbols"],
                         "file_type": imp.get("file_type"),
                         "module": imp.get("source", ""),
-                        "resolved_path": imp.get("resolved_path") or "",
+                        "resolved_path": resolved_path,
                         "is_static": imp.get("is_static", False),
                         "is_wildcard": imp.get("is_wildcard", False),
                     }
@@ -262,8 +268,8 @@ class Ingest(GithubClient):
         # chunks_dict = []
         try:
             category = file_details.get("category", "")
-            logger.info("[CHUNK-FILE] FILE PATH: %s", file_path)
-            logger.info("[CHUNK-FILE] CATEGORY : %s", category)
+            # logger.info("[CHUNK-FILE] FILE PATH: %s", file_path)
+            # logger.info("[CHUNK-FILE] CATEGORY : %s", category)
             if category == "document":
                 file_format = file_details.get("format", "")
 
@@ -397,13 +403,13 @@ class Ingest(GithubClient):
                             file_path=file_path,
                             count_tokens=self.embedder.count_tokens,
                         )
-                        logger.info(
-                            "[CHUNK-PROVENANCE] FILE=%s LANGUAGE=%s CHUNKS=%d FIRST=%s",
-                            file_path,
-                            self.code_parser.language,
-                            len(chunks),
-                            chunks[0]["embedding_str"][:180] if chunks else "<none>",
-                        )
+                        # logger.info(
+                        #     "[CHUNK-PROVENANCE] FILE=%s LANGUAGE=%s CHUNKS=%d FIRST=%s",
+                        #     file_path,
+                        #     self.code_parser.language,
+                        #     len(chunks),
+                        #     chunks[0]["embedding_str"][:180] if chunks else "<none>",
+                        # )
 
                     else:
                         logger.info(
@@ -697,10 +703,10 @@ class Ingest(GithubClient):
                 if not file_id:
                     raise KeyError("[INJEST-PROCESS-BATCH] FILE-ID IS REQUIRED")
                 if stored_file_path:
-                    logger.info(
-                        "[BATCH-PROCESSING] FILE PATH: %s",
-                        Path(self.target_dir) / stored_file_path,
-                    )
+                    # logger.info(
+                    #     "[BATCH-PROCESSING] FILE PATH: %s",
+                    #     Path(self.target_dir) / stored_file_path,
+                    # )
                     chunks = await self._chunk_file(
                         file_path=Path(self.target_dir) / stored_file_path,
                         file_id=file_id,
