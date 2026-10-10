@@ -186,12 +186,15 @@ class Ingest(GithubClient):
                 if not isinstance(imp, dict):
                     continue
 
-                path = imp.get("resolved_path")
-                resolved_path = path.resolved_path(self.target_dir).as_posix() if path is not None else ""
+                path = Path(imp.get("resolved_path") or "")
+                resolved_path = (
+                    path.relative_to(self.target_dir).as_posix()
+                    if path is not None
+                    else ""
+                )
 
                 # logger.info("[INJEST-EXTRACT-IMPORTS] RESOLVED PATH: %s", resolved_path)
 
-                
                 file_imports.append(
                     {
                         "file_id": file_id,
