@@ -186,12 +186,17 @@ class Ingest(GithubClient):
                 if not isinstance(imp, dict):
                     continue
 
-                path = Path(imp.get("resolved_path") or "")
-                resolved_path = (
-                    path.relative_to(self.target_dir).as_posix()
-                    if path is not None
-                    else ""
-                )
+                raw_path = imp.get("resolved_path")
+                if raw_path:
+                    path = Path(raw_path).resolve()
+                    target_dir = Path(self.target_dir).resolve()
+
+                    try:
+                        relative_path = path.relative_to(target_dir).as_posix()
+                    except ValueError:
+                        relative_path = ""  # Or handle paths outside target_dir
+                else:
+                    relative_path = ""
 
                 # logger.info("[INJEST-EXTRACT-IMPORTS] RESOLVED PATH: %s", resolved_path)
 
@@ -203,7 +208,7 @@ class Ingest(GithubClient):
                         "symbols": imp["symbols"],
                         "file_type": imp.get("file_type"),
                         "module": imp.get("source", ""),
-                        "resolved_path": resolved_path,
+                        "resolved_path": relative_path,
                         "is_static": imp.get("is_static", False),
                         "is_wildcard": imp.get("is_wildcard", False),
                     }
