@@ -52,12 +52,15 @@ class Embedder:
                         f"Content item at index {index} must be a dictionary."
                     )
 
-                if "embedding_str" not in item:
+                if ["embed_id", "chunk_str"] in item:
+                    embedding_text = item["chunk_str"]
+                elif "embedding_str" in item:
+                    embedding_text = item["embedding_str"]
+                else:
                     raise KeyError(
-                        f"CONTENT ITEM AT INDEX {index} IS MISSING " "'embedding_str'"
+                        f"CONTENT ITEM AT INDEX {index} IS MISSING "
+                        "'embedding_str' OR 'chunk_str'"
                     )
-
-                embedding_text = item["embedding_str"]
 
                 if not isinstance(embedding_text, str):
                     raise TypeError(
