@@ -75,3 +75,5 @@ async def update_embedding():
         logger.exception("[UPDATE-CHUNK] UNABLE TO GET THE CHUNKS, %s", e)
     except Exception as e:
         logger.exception("[UPDATE-CHUNK] UNKNOWN ERROR, %s", e)
+
+asyncio.run(update_embedding())
