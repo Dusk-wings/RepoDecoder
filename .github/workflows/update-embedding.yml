@@ -1,0 +1,50 @@
+name: Update Embedding 
+
+on:
+  repository_dispatch:
+    types: [update-embedding]
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/uv.lock
+
+      - name: Setup Python
+        run: uv python install
+
+      - name: Cache model files
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/fastembed
+            ~/.cache/huggingface
+          key: ${{ runner.os }}-models-${{ github.event.client_payload.model }}
+          restore-keys: |
+            ${{ runner.os }}-models-
+
+      
+      - name: Sync Deps using UV
+        run: |
+         cd backend
+         uv sync --frozen
+      
+      - name: Run Embedding Update Script
+        env:
+          PYTHONPATH: .
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MODEL_NAME: ${{ github.event.client_payload.model }}
+          FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.cache/fastembed
+        run: |
+         cd backend
+         uv run python app/scripts/update_embedding.py
