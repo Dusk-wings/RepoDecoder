@@ -10,7 +10,7 @@ import logging
 import asyncio
 
 logger = logging.getLogger(__name__)
-embedder = Embedder(model_name="jinaai/jina-embeddings-v2-small-en")
+embedder = Embedder(model_name="nomic-ai/nomic-embed-text-v1.5-Q")
 
 
 async def get_chunks():
