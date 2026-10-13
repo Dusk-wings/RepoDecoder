@@ -1,0 +1,883 @@
+{
+    "summary": {
+        "used_tech": [
+            "vector"
+        ],
+        "model_name": "nomic-ai/nomic-embed-text-v1.5-Q",
+        "total_queries": 38,
+        "top_k": 5,
+        "mean_hit_rate": 0.6579,
+        "mean_precision": 0.1842,
+        "mean_recall": 0.3491,
+        "mean_mrr": 0.4605,
+        "mean_map": 0.2359
+    },
+    "per_query_results": [
+        {
+            "query": "What happens to the refresh token when a user successfully logs in versus when they request a new token via the refresh token endpoint?",
+            "ground_truth_answer": "During login, the system updates the existing refresh token for the user or creates a new one using upsert if it doesn't exist. When using the refresh token endpoint, the system generates a completely new refresh token and updates the database with this new token, replacing the old one.",
+            "true_relevant_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f"
+            ],
+            "retrieved_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "195b82fd-ba0a-488a-8684-9704a1f35195",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "4f898195-ba56-4a9d-9e51-cdf38de6400f"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.5,
+                "mrr": 1.0,
+                "map": 0.5
+            }
+        },
+        {
+            "query": "In the listNamespace, how are the 'delete-list' and 'update-list' events processed, and what common validation checks are performed before emitting the respective events?",
+            "ground_truth_answer": "Both 'delete-list' and 'update-list' events require the socket to have a valid board_id and user_id, and the board must exist in boardUsersMap. If any of these conditions fail, an appropriate error is emitted before the event is processed.",
+            "true_relevant_ids": [
+                "aacf908d-48e4-44b7-846b-d818a0b44af4",
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053",
+                "9864d118-485b-4daf-aa4e-5c1ab48f830a"
+            ],
+            "retrieved_ids": [
+                "ef176419-5e90-43ff-871c-44e331a7b7c8",
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053",
+                "cc16c268-fdad-4003-82d1-b834a202a64f",
+                "36335983-be85-4ce0-95c0-f61016e27bc0",
+                "68e10359-6515-4e6a-bb97-ede74895ce69"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 0.5,
+                "map": 0.1667
+            }
+        },
+        {
+            "query": "What happens to the refresh token and access token when a user successfully logs in, and how does the refresh token expiration time get set?",
+            "ground_truth_answer": "Both login and user creation generate a new access token and refresh token. The refresh token is stored in the database with an expiration time set to 4 days from the current timestamp (1000 * 60 * 60 * 24 * 4 milliseconds).",
+            "true_relevant_ids": [
+                "1786f3ca-ed30-4c41-a724-480344a2257a",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f"
+            ],
+            "retrieved_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "4efc982d-807c-4982-aced-0bb91b958c0b",
+                "4f898195-ba56-4a9d-9e51-cdf38de6400f"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "How does the system handle old image files when a user updates their profile picture or background image?",
+            "ground_truth_answer": "When updating a user's profile, the system extracts the old filename from the previous image path, constructs the full file path using the 'uploads' directory, and deletes the file if it exists using fs.unlinkSync.",
+            "true_relevant_ids": [
+                "3752b8bf-f134-4f32-bf1d-02e9aac55c71",
+                "799be35e-77c2-4e18-90fb-c3d4a2ad4595"
+            ],
+            "retrieved_ids": [
+                "799be35e-77c2-4e18-90fb-c3d4a2ad4595",
+                "3752b8bf-f134-4f32-bf1d-02e9aac55c71",
+                "4e430f5d-d7ec-4a4d-a6ba-9ff8590881fe",
+                "d9b8e028-9fd5-4b06-b5ed-a8b7640183ab",
+                "ddabcb1c-8f50-45f0-9701-d0e670c4b17d"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 1.0,
+                "mrr": 1.0,
+                "map": 1.0
+            }
+        },
+        {
+            "query": "What is the complete flow for refreshing an access token, including validation steps and what happens if the token doesn't exist or is expired?",
+            "ground_truth_answer": "The system first checks if the refresh token exists in the database, returning a 404 if not. It then verifies if the token is expired by comparing expires_at with the current time. If valid, it generates a new access token and refresh token, updates the database with the new refresh token, and returns the user data along with the new tokens.",
+            "true_relevant_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "7aed8578-ac6a-46dd-8fd3-e7e871b81eeb"
+            ],
+            "retrieved_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "195b82fd-ba0a-488a-8684-9704a1f35195",
+                "59acdc64-b21c-44ca-b76e-4ffa7beb6859"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.5,
+                "mrr": 1.0,
+                "map": 0.5
+            }
+        },
+        {
+            "query": "What happens to the auth slice state when the loginUser thunk is rejected?",
+            "ground_truth_answer": "When loginUser is rejected, the auth slice sets state.error to the payload (an AuthError object) and sets state.loadingAuth to false.",
+            "true_relevant_ids": [
+                "8641274b-ca33-4d0b-a962-337637e611a8",
+                "afbe6c8d-066a-4b1e-8aae-a023442c06b8"
+            ],
+            "retrieved_ids": [
+                "afbe6c8d-066a-4b1e-8aae-a023442c06b8",
+                "71615510-13ad-44f9-befd-c31c72edd80b",
+                "fa01e295-41b0-4312-8d1d-91257439c6b8",
+                "201c8e2d-bcdb-4836-8e33-f58efd3fd793",
+                "334cba0e-7f9c-4e56-b788-d59c51e09ec3"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.5,
+                "mrr": 1.0,
+                "map": 0.5
+            }
+        },
+        {
+            "query": "What is the complete structure of the InitialState interface and how does it relate to the boardSlice reducers?",
+            "ground_truth_answer": "The InitialState interface defines boards as an array of Board objects, a boolean loading state, and a nullable string error state. The boardSlice uses this exact structure in its initialState, with reducers like addBoard and removeBoard modifying the boards array while extraReducers manage the loading and error states based on the getBoardData async thunk.",
+            "true_relevant_ids": [
+                "a551a198-4b7e-402c-88d1-638f56163ded",
+                "0ebf2c43-9892-44c4-abdb-02c26119dae6"
+            ],
+            "retrieved_ids": [
+                "7f95d3e2-d77f-49a6-b4be-a4dce3f49b3a",
+                "0ebf2c43-9892-44c4-abdb-02c26119dae6",
+                "87c5c75a-ef30-4842-a557-13610efb5c98",
+                "f4246a82-3807-4dc7-8a56-38cd88285963",
+                "13b95e36-dbf7-476d-a806-33c304d1a595"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.5,
+                "mrr": 0.5,
+                "map": 0.25
+            }
+        },
+        {
+            "query": "What are the required fields for a Card object and how does it differ from a List object?",
+            "ground_truth_answer": "A Card object requires _id, user_id, board_id, title, description, deadline, list_id, status (with three possible string literal values), and timestamp fields. A List object is similar but lacks the user_id, deadline, and status fields, instead having a position number.",
+            "true_relevant_ids": [
+                "13b95e36-dbf7-476d-a806-33c304d1a595",
+                "fab4b656-be9f-434f-a6bf-1e395734ab76",
+                "45536705-6d21-4abe-958b-586d4349c228"
+            ],
+            "retrieved_ids": [
+                "9b589d72-1718-4b5c-8706-a03216eea28c",
+                "bdf7abad-5366-4e7b-8379-1d7d41d61c57",
+                "fab4b656-be9f-434f-a6bf-1e395734ab76",
+                "8562008f-4950-4f26-8538-d0b802ff12be",
+                "9f845cf9-08c1-4a26-a4d9-d4e19230d27e"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 0.3333,
+                "map": 0.1111
+            }
+        },
+        {
+            "query": "How does the updateBoard reducer modify a board and what specific properties can be changed?",
+            "ground_truth_answer": "The updateBoard reducer finds a board by its _id in the state's boards array and updates its title, description, and visibility properties with the new values from the action payload. These three properties are the only ones that can be modified through this reducer.",
+            "true_relevant_ids": [
+                "a551a198-4b7e-402c-88d1-638f56163ded",
+                "45536705-6d21-4abe-958b-586d4349c228"
+            ],
+            "retrieved_ids": [
+                "389d0723-929f-4449-8993-7393b5125e54",
+                "b6bbe95f-d5f5-4e05-b0a7-e681cefe52c3",
+                "0f3002d5-e616-4cf8-9d2c-ebb45c29287b",
+                "8c0b6cfd-826f-46b8-a23d-8539e9071503",
+                "ea99d1da-3118-4bdd-b42b-e681af6ac984"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "How does the backend ensure that a user can only update a board they own, and what happens if the board is not found?",
+            "ground_truth_answer": "The backend uses `Board.findOneAndUpdate` with a filter `{ _id: board_id, user_id: user_id }` to ensure only the owner can update the board. If the board is not found, it returns a 404 status with the message 'Board not found'.",
+            "true_relevant_ids": [
+                "0f3002d5-e616-4cf8-9d2c-ebb45c29287b",
+                "0aff9b9b-6cc0-496c-b04d-41ab58e80cf0"
+            ],
+            "retrieved_ids": [
+                "0f3002d5-e616-4cf8-9d2c-ebb45c29287b",
+                "389d0723-929f-4449-8993-7393b5125e54",
+                "b6bbe95f-d5f5-4e05-b0a7-e681cefe52c3",
+                "df2595ba-9aeb-478f-9c36-e22ea5bd2800",
+                "3eb47cbd-cd2c-481a-921b-596539a47d28"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.5,
+                "mrr": 1.0,
+                "map": 0.5
+            }
+        },
+        {
+            "query": "When fetching a single board by ID, how does the backend handle visibility settings to allow public boards to be accessed by anyone?",
+            "ground_truth_answer": "The `getBoardById` function uses an `$or` condition in the query to match either the specific `user_id` or if the board's `visibility` is 'public'. This allows public boards to be fetched by any user, while private boards are restricted to their owner.",
+            "true_relevant_ids": [
+                "35797768-bc49-4a2f-8212-51104e9a678f",
+                "0f3002d5-e616-4cf8-9d2c-ebb45c29287b"
+            ],
+            "retrieved_ids": [
+                "45536705-6d21-4abe-958b-586d4349c228",
+                "3eb47cbd-cd2c-481a-921b-596539a47d28",
+                "df2595ba-9aeb-478f-9c36-e22ea5bd2800",
+                "35797768-bc49-4a2f-8212-51104e9a678f",
+                "3e592f26-2ad2-45f3-bb2a-b98f9d5da2cb"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.5,
+                "mrr": 0.25,
+                "map": 0.125
+            }
+        },
+        {
+            "query": "What is the complete authentication flow for a new user registration, including how the refresh token is created, stored, and what happens if the token storage fails?",
+            "ground_truth_answer": "When a new user registers via createUser, the system generates an access token and a refresh token. It then attempts to store the refresh token in the RefereshTokenModel with an expiration of 4 days. If this storage fails, the function returns a 500 Internal Server Error without issuing tokens. In contrast, the loginUser function always updates the existing refresh token in the database (or creates it if missing via upsert) before returning tokens.",
+            "true_relevant_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "1786f3ca-ed30-4c41-a724-480344a2257a",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f"
+            ],
+            "retrieved_ids": [
+                "4f898195-ba56-4a9d-9e51-cdf38de6400f",
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "195b82fd-ba0a-488a-8684-9704a1f35195"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 0.5,
+                "map": 0.1667
+            }
+        },
+        {
+            "query": "How does the logout process differ from the token refresh process regarding the handling of the refresh token and user data retrieval?",
+            "ground_truth_answer": "The logout function deletes the refresh token record associated with the user_id from the RefereshTokenModel and does not retrieve or return the user's profile data. Conversely, the token refresh function first validates the token exists and is not expired, then generates a new access token, creates a new refresh token, updates the database, and explicitly fetches and returns the user's profile data before returning the new tokens.",
+            "true_relevant_ids": [
+                "1c8702b4-5623-4413-a2d8-d60b4c6714f2",
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "ac7e2bff-62b6-4890-a05f-e446d46d2a85"
+            ],
+            "retrieved_ids": [
+                "0dcd4cce-2877-4bfd-8d71-32eb9157c3d0",
+                "4f898195-ba56-4a9d-9e51-cdf38de6400f",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "ac7e2bff-62b6-4890-a05f-e446d46d2a85",
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 0.6667,
+                "mrr": 0.25,
+                "map": 0.2167
+            }
+        },
+        {
+            "query": "Trace the full lifecycle of a refresh token from initial creation during login to its potential invalidation during logout, including the specific database operations performed in each step.",
+            "ground_truth_answer": "During login, the system performs an upsert operation on the RefereshTokenModel to create or update the token for the user. During token refresh, the system finds the existing token, validates its expiration, updates it with a new token and expiration time, and returns the user data. During logout, the system performs a deleteOne operation on the RefereshTokenModel to permanently remove the token associated with the user_id.",
+            "true_relevant_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "ac7e2bff-62b6-4890-a05f-e446d46d2a85",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f"
+            ],
+            "retrieved_ids": [
+                "4f898195-ba56-4a9d-9e51-cdf38de6400f",
+                "0dcd4cce-2877-4bfd-8d71-32eb9157c3d0",
+                "195b82fd-ba0a-488a-8684-9704a1f35195",
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 0.6667,
+                "mrr": 0.25,
+                "map": 0.2167
+            }
+        },
+        {
+            "query": "What is the complete flow for a new user registration, including how the backend creates the user, generates tokens, and stores the refresh token, and how does the frontend handle the successful response?",
+            "ground_truth_answer": "When a user registers via the frontend, the `onSubmit` function sends a POST request to `/api/users` with the user data. The backend's `createUser` function checks if the email exists, hashes the password, creates the user, generates an access token and a refresh token, and then attempts to save the refresh token to the `RefereshTokenModel` with an expiration of 4 days. If successful, it returns the user ID, access token, refresh token, and expiration time to the frontend, which then navigates the user to the dashboard.",
+            "true_relevant_ids": [
+                "1786f3ca-ed30-4c41-a724-480344a2257a",
+                "022233a5-7b1d-4b56-884a-9067951ec25c",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f"
+            ],
+            "retrieved_ids": [
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "0dcd4cce-2877-4bfd-8d71-32eb9157c3d0",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "195b82fd-ba0a-488a-8684-9704a1f35195",
+                "8a469cb9-254b-4813-acf3-d8b63bb3b288"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "How does the `refereshToken` function validate a refresh token, and what specific conditions cause it to return a 404 error versus a 500 error?",
+            "ground_truth_answer": "The `refereshToken` function first checks if the provided refresh token exists in the `RefereshTokenModel`. If the token is not found, it returns a 404 error. If the token exists but its `expires_at` timestamp is less than the current time (`Date.now()`), it returns a 404 error for an expired token. If the token is valid but an error occurs during the subsequent update or user fetch operations, it returns a 500 Internal Server Error.",
+            "true_relevant_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f",
+                "7aed8578-ac6a-46dd-8fd3-e7e871b81eeb"
+            ],
+            "retrieved_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "195b82fd-ba0a-488a-8684-9704a1f35195",
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "4f898195-ba56-4a9d-9e51-cdf38de6400f"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 1.0,
+                "map": 0.3333
+            }
+        },
+        {
+            "query": "Describe the complete process for a user to log in, including how the frontend sends credentials, how the backend verifies the password, and how the refresh token is managed upon successful login.",
+            "ground_truth_answer": "The frontend sends a POST request with email and password to the backend. The `loginUser` function finds the user by email and uses `bcrypt.compare` to verify the password. If the password is correct, it generates a new access token and a new refresh token. It then updates the existing refresh token record in the `RefereshTokenModel` for that user with the new token and a 4-day expiration. Finally, it returns the user ID, access token, refresh token, and expiration time.",
+            "true_relevant_ids": [
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "1f782c91-588e-414f-b8c4-31a32e016f97",
+                "6bcc5612-6fa5-4c15-9511-f9a10212f33f"
+            ],
+            "retrieved_ids": [
+                "0dcd4cce-2877-4bfd-8d71-32eb9157c3d0",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "201c8e2d-bcdb-4836-8e33-f58efd3fd793",
+                "10c5798f-b04d-4b0a-b198-0a0294ccba7d",
+                "1ac9089e-2022-4db9-afd3-1287d56d4062"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "In the test file for the refresh token route, how is the mock for `refereshToken` configured, and what specific request payload is sent to the `/api/users/refresh-token` endpoint?",
+            "ground_truth_answer": "The test mocks `RefereshTokenModel` as `mockRefreshTokenModel`. The request to `/api/users/refresh-token` is a POST that includes the `refresh_token` cookie and sends a JSON body containing `{ user_id: \"1\" }`.",
+            "true_relevant_ids": [
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "8641274b-ca33-4d0b-a962-337637e611a8",
+                "195b82fd-ba0a-488a-8684-9704a1f35195"
+            ],
+            "retrieved_ids": [
+                "1ac9089e-2022-4db9-afd3-1287d56d4062",
+                "195b82fd-ba0a-488a-8684-9704a1f35195",
+                "c314cb25-1c7e-4dfc-8004-8da6f041e1c4",
+                "2c36b2f2-a894-4485-9bec-00851f2a58d7",
+                "b0ac109a-0187-4f47-8ed0-e9809e4cc7a5"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 0.6667,
+                "mrr": 1.0,
+                "map": 0.6667
+            }
+        },
+        {
+            "query": "What is the complete structure of the initial state for the board slice, and which specific fields from the Board, List, and Card interfaces are included in it?",
+            "ground_truth_answer": "The initial state for the board slice is defined as `boards: Board[]`, `loading: boolean`, and `error: string | null`. It only includes an array of `Board` objects, which contain `_id`, `title`, `description`, `visibility`, `created_at`, and `updated_at`. The `List` and `Card` interfaces are not part of the initial state, meaning lists and cards are not pre-initialized in the store.",
+            "true_relevant_ids": [
+                "13b95e36-dbf7-476d-a806-33c304d1a595",
+                "fab4b656-be9f-434f-a6bf-1e395734ab76",
+                "0ebf2c43-9892-44c4-abdb-02c26119dae6",
+                "45536705-6d21-4abe-958b-586d4349c228"
+            ],
+            "retrieved_ids": [
+                "87c5c75a-ef30-4842-a557-13610efb5c98",
+                "7f95d3e2-d77f-49a6-b4be-a4dce3f49b3a",
+                "9b589d72-1718-4b5c-8706-a03216eea28c",
+                "84395029-ed9d-4351-970d-35b73a2ab93c",
+                "67329f2a-37a3-40b9-af8f-17f103aaca31"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "How does the frontend boardSlice handle the state update when a board is modified, and which backend service is responsible for persisting those changes?",
+            "ground_truth_answer": "The frontend boardSlice updates the local state by finding the board by ID and modifying its title, description, and visibility fields. The backend service responsible for persisting these changes is updateBoard, which accepts user_id, board_id, and optional fields for title, visibility, and description.",
+            "true_relevant_ids": [
+                "35797768-bc49-4a2f-8212-51104e9a678f",
+                "0aff9b9b-6cc0-496c-b04d-41ab58e80cf0",
+                "a551a198-4b7e-402c-88d1-638f56163ded",
+                "0ebf2c43-9892-44c4-abdb-02c26119dae6",
+                "0e6d38d2-0a6c-4761-b284-d4b8c1336cf6"
+            ],
+            "retrieved_ids": [
+                "389d0723-929f-4449-8993-7393b5125e54",
+                "0f3002d5-e616-4cf8-9d2c-ebb45c29287b",
+                "b6bbe95f-d5f5-4e05-b0a7-e681cefe52c3",
+                "87c5c75a-ef30-4842-a557-13610efb5c98",
+                "36335983-be85-4ce0-95c0-f61016e27bc0"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "What specific conditions must be met for a user to successfully retrieve a board by its ID, considering both frontend state management and backend validation logic?",
+            "ground_truth_answer": "The backend getBoardById service requires both user_id and board_id to be present in the request data. It then queries the Board collection using an $or condition to match either the user_id or a visibility of 'public'. The frontend boardSlice manages the state of these boards, including loading and error states.",
+            "true_relevant_ids": [
+                "35797768-bc49-4a2f-8212-51104e9a678f",
+                "0ebf2c43-9892-44c4-abdb-02c26119dae6",
+                "0aff9b9b-6cc0-496c-b04d-41ab58e80cf0"
+            ],
+            "retrieved_ids": [
+                "3eb47cbd-cd2c-481a-921b-596539a47d28",
+                "df2595ba-9aeb-478f-9c36-e22ea5bd2800",
+                "35797768-bc49-4a2f-8212-51104e9a678f",
+                "b6bbe95f-d5f5-4e05-b0a7-e681cefe52c3",
+                "01727a90-1694-4db0-b95a-333a8ae12bae"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 0.3333,
+                "map": 0.1111
+            }
+        },
+        {
+            "query": "Describe the complete flow for deleting a board, including the required data structure, the backend validation performed, and how the frontend state is updated afterward.",
+            "ground_truth_answer": "The frontend boardSlice provides a removeBoard action that filters out the board by its ID. The backend deleteBoard service receives an object containing user_id and board_id, validates that board_id is present, and then deletes the document from the Board collection if it matches the user.",
+            "true_relevant_ids": [
+                "5981202b-08ec-4dda-a872-a3b7a28a44b8",
+                "0ebf2c43-9892-44c4-abdb-02c26119dae6",
+                "0aff9b9b-6cc0-496c-b04d-41ab58e80cf0"
+            ],
+            "retrieved_ids": [
+                "5981202b-08ec-4dda-a872-a3b7a28a44b8",
+                "59029161-f3ca-4d01-968b-14340eb6c83f",
+                "529272e7-0dbe-408d-87b7-1592d9010045",
+                "b6bbe95f-d5f5-4e05-b0a7-e681cefe52c3",
+                "01727a90-1694-4db0-b95a-333a8ae12bae"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 1.0,
+                "map": 0.3333
+            }
+        },
+        {
+            "query": "What CORS configuration is applied to the Socket.IO server and which HTTP methods are permitted?",
+            "ground_truth_answer": "The Socket.IO server is configured with CORS to allow requests from 'http://localhost:5173'. It permits GET, POST, PUT, and DELETE HTTP methods and allows credentials to be sent with requests.",
+            "true_relevant_ids": [
+                "b8836e8a-7c24-4ca6-b2a7-88625d5ac7fc"
+            ],
+            "retrieved_ids": [
+                "d4505c5b-41e7-4eb1-b1d6-d1601316dfb3",
+                "f51a4573-eb1a-4519-97b3-2c9f423b60b4",
+                "a2c61ebe-4b4d-4504-902a-a4621a5fa69c",
+                "b8836e8a-7c24-4ca6-b2a7-88625d5ac7fc",
+                "e5deb084-4588-4deb-a307-2224af0b6a54"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 1.0,
+                "mrr": 0.25,
+                "map": 0.25
+            }
+        },
+        {
+            "query": "What is the structure of the route initialization in the backend and how does it relate to the global server setup?",
+            "ground_truth_answer": "The global server is set up with Express and Socket.IO in `/backend/src/index.ts`, while the routes are initialized separately in `/backend/src/routes/index.ts` using `const router = Router();`. The router is defined independently but would typically be mounted onto the `app` instance from the index file to handle HTTP requests alongside the Socket.IO server.",
+            "true_relevant_ids": [
+                "b8836e8a-7c24-4ca6-b2a7-88625d5ac7fc",
+                "7793add5-5892-449b-bfac-4b921a278e4d"
+            ],
+            "retrieved_ids": [
+                "e33e704a-3aea-4ac6-a544-615503f8ed70",
+                "8163d6a7-819c-48ad-869e-a5f23bea316c",
+                "82ced511-1810-4bc4-b269-f3199b84a238",
+                "7c5ca0de-4f98-4fe7-b124-743344031373",
+                "973ff1ba-e3eb-41d0-8baf-c652d2dbdbab"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "Describe the full authentication flow for a WebSocket connection, detailing how the frontend store manages the user state and how the backend socket middleware validates the user's identity against the database.",
+            "ground_truth_answer": "The frontend `loginUser` thunk fetches user data from the backend and, upon success, updates the Redux `auth` slice to set `state.user` and `state.isAuth` to true. When a WebSocket connection is established, the `authSocketMiddleware` extracts the `access_token` from the `cookies` header, verifies it using `jwt.verify`, and checks if the `decoded.sub` exists in the database via `UserModel.findById`. If valid, it sets `socket.data.user_id` and allows the connection.",
+            "true_relevant_ids": [
+                "8641274b-ca33-4d0b-a962-337637e611a8",
+                "fa01e295-41b0-4312-8d1d-91257439c6b8",
+                "9190f90d-00a7-4532-81a8-09f409712e64"
+            ],
+            "retrieved_ids": [
+                "e5deb084-4588-4deb-a307-2224af0b6a54",
+                "a2c61ebe-4b4d-4504-902a-a4621a5fa69c",
+                "334cba0e-7f9c-4e56-b788-d59c51e09ec3",
+                "82ced511-1810-4bc4-b269-f3199b84a238",
+                "201c8e2d-bcdb-4836-8e33-f58efd3fd793"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "If a user logs out on the frontend, what changes occur in the Redux store, and how does the backend `authMiddleware` respond to subsequent requests made by the client?",
+            "ground_truth_answer": "When `logOut` is dispatched, the Redux `auth` slice sets `state.user` to null and `state.isAuth` to false. Subsequently, any request hitting the backend `authMiddleware` will fail because `req.cookies` will either be missing or the `access_token` will be invalid/missing, causing the middleware to return a 401 Unauthorized status with the message 'Unauthorized'.",
+            "true_relevant_ids": [
+                "fa01e295-41b0-4312-8d1d-91257439c6b8",
+                "71615510-13ad-44f9-befd-c31c72edd80b",
+                "a209dc79-a783-4b27-be5e-9830071d75e9"
+            ],
+            "retrieved_ids": [
+                "a209dc79-a783-4b27-be5e-9830071d75e9",
+                "c686ff69-3d3f-48f8-82cf-6c290eaeca64",
+                "d6b0c78f-bbf6-4415-b810-c6caaf8878a6",
+                "799be35e-77c2-4e18-90fb-c3d4a2ad4595",
+                "afbe6c8d-066a-4b1e-8aae-a023442c06b8"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 1.0,
+                "map": 0.3333
+            }
+        },
+        {
+            "query": "How does the frontend application handle a scenario where a user attempts to access the '/dashboard' route while not authenticated, and what specific backend middleware logic validates this access on the server side?",
+            "ground_truth_answer": "On the frontend, accessing '/dashboard' triggers the `requireAuth` loader, which dispatches `loginUser()` if `state.auth.isAuth` is false and redirects to '/auth/login' if authentication still fails. On the backend, the `authMiddleware` validates this by checking for `req.cookies.access_token`, verifying the JWT secret, and ensuring the `decoded.sub` exists in the database via `UserModel.findById` before calling `next()`.",
+            "true_relevant_ids": [
+                "a209dc79-a783-4b27-be5e-9830071d75e9",
+                "334cba0e-7f9c-4e56-b788-d59c51e09ec3",
+                "c088fe72-a5c3-4b34-977d-b49929cad9f1"
+            ],
+            "retrieved_ids": [
+                "82ced511-1810-4bc4-b269-f3199b84a238",
+                "e33e704a-3aea-4ac6-a544-615503f8ed70",
+                "d6b0c78f-bbf6-4415-b810-c6caaf8878a6",
+                "973ff1ba-e3eb-41d0-8baf-c652d2dbdbab",
+                "8163d6a7-819c-48ad-869e-a5f23bea316c"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "What happens if the frontend sends a `name` field that is shorter than 3 characters, and how does the backend middleware handle this error?",
+            "ground_truth_answer": "If the frontend sends a `name` shorter than 3 characters, the `updateUserValidation` schema will fail validation. The `updateUserValidationMiddleware` detects this via `safeParse`, checks `result.success`, and returns a `400` status with a JSON object containing the message \"Validation failed\" and the specific error details.",
+            "true_relevant_ids": [
+                "695780a4-a293-4ffd-979a-87a588f912fb",
+                "78170ae8-b298-450a-9061-0856af034f57",
+                "028537e2-f77f-45f7-9653-6ca91882d8e3"
+            ],
+            "retrieved_ids": [
+                "71615510-13ad-44f9-befd-c31c72edd80b",
+                "f4246a82-3807-4dc7-8a56-38cd88285963",
+                "7f95d3e2-d77f-49a6-b4be-a4dce3f49b3a",
+                "69895958-3c84-467e-b69b-fe0b57fe65f5",
+                "0ebf2c43-9892-44c4-abdb-02c26119dae6"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "What is the complete data flow for updating a user's profile image, from the frontend file selection to the backend validation middleware?",
+            "ground_truth_answer": "The flow starts in the frontend where `handleFileChange` captures the selected file and updates state (`profileImageFile`), then `handleSave` appends this file to a `FormData` object and sends a `PUT` request to `/api/users`. The backend receives this in `updateUserValidationMiddleware`, which uses `updateUserValidation` (defined with `profileImage` as an optional string) to parse the request body. If validation passes, the cleaned data is attached to `req.body` before proceeding to the next middleware.",
+            "true_relevant_ids": [
+                "695780a4-a293-4ffd-979a-87a588f912fb",
+                "028537e2-f77f-45f7-9653-6ca91882d8e3",
+                "4e430f5d-d7ec-4a4d-a6ba-9ff8590881fe",
+                "78170ae8-b298-450a-9061-0856af034f57",
+                "ddabcb1c-8f50-45f0-9701-d0e670c4b17d"
+            ],
+            "retrieved_ids": [
+                "4e430f5d-d7ec-4a4d-a6ba-9ff8590881fe",
+                "ddabcb1c-8f50-45f0-9701-d0e670c4b17d",
+                "982acba5-8770-41db-89a8-da5a279360ca",
+                "78170ae8-b298-450a-9061-0856af034f57",
+                "3752b8bf-f134-4f32-bf1d-02e9aac55c71"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.6,
+                "recall": 0.6,
+                "mrr": 1.0,
+                "map": 0.55
+            }
+        },
+        {
+            "query": "Explain the role of the `boardUsersMap` in the list management handlers and how the `authSocketMiddleware` ensures that only authenticated users can access the list namespace where this map is checked.",
+            "ground_truth_answer": "The `boardUsersMap` is a critical data structure used in `handelListCreate`, `handelListDelete`, and `handelListUpdate` to verify that a user is authorized to perform actions on a specific board. The `authSocketMiddleware` ensures that only authenticated users (those with a valid JWT and existing user record) have their `user_id` attached to `socket.data`. Without this middleware, the handlers would not have the necessary `user_id` to check against `boardUsersMap`, effectively preventing unauthorized access to the list namespace's functionality.",
+            "true_relevant_ids": [
+                "0a25b3a4-b428-4842-9643-d73cc161326c",
+                "9190f90d-00a7-4532-81a8-09f409712e64",
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053"
+            ],
+            "retrieved_ids": [
+                "aacf908d-48e4-44b7-846b-d818a0b44af4",
+                "9864d118-485b-4daf-aa4e-5c1ab48f830a",
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053",
+                "87c5c75a-ef30-4842-a557-13610efb5c98",
+                "0a25b3a4-b428-4842-9643-d73cc161326c"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 0.6667,
+                "mrr": 0.3333,
+                "map": 0.2444
+            }
+        },
+        {
+            "query": "Describe the sequence of operations when a client sends a 'create-list' event, including how the namespace is initialized, how authentication is handled, and what specific data validations occur before emitting the 'list-created' event.",
+            "ground_truth_answer": "When a client connects, the `initSocket` function registers the `listNamespace` with the server. Upon connection, the `listNamespace` applies `authSocketMiddleware` to verify the user's identity and attach `user_id` to `socket.data`. If authenticated, the `listNamespace` listens for the 'create-list' event and calls `handelListCreate`. This handler first checks if `board_id` and `user_id` exist in `socket.data`, then verifies the user is connected to the board via `boardUsersMap`. If all checks pass, it joins the socket to the board namespace and emits the 'list-created' event with the provided data.",
+            "true_relevant_ids": [
+                "0a25b3a4-b428-4842-9643-d73cc161326c",
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053",
+                "d4505c5b-41e7-4eb1-b1d6-d1601316dfb3"
+            ],
+            "retrieved_ids": [
+                "c8608e31-337e-4a8b-8822-de03d39f338a",
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053",
+                "9b503ae0-a3ff-4962-afda-213f0321a8ec",
+                "0087b84f-43cd-4d9b-9128-070ee2764355",
+                "ef176419-5e90-43ff-871c-44e331a7b7c8"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 0.5,
+                "map": 0.1667
+            }
+        },
+        {
+            "query": "What is the complete authentication flow for a socket connection, and how does the list namespace specifically utilize this middleware before processing create, delete, or update events?",
+            "ground_truth_answer": "The authentication flow begins in the `authSocketMiddleware` function, which extracts an `access_token` from the `cookies` header, verifies it using `jwt.verify`, and checks if the decoded `sub` corresponds to an existing user in the database via `UserModel.findById`. If valid, it attaches the `user_id` to `socket.data` and calls `next()`. The `listNamespace` explicitly applies this middleware via `namespace.use(authSocketMiddleware)` before handling any events. Finally, the `initSocket` function registers the `listNamespace` alongside other namespaces, ensuring this authentication step is part of the overall socket initialization.",
+            "true_relevant_ids": [
+                "9190f90d-00a7-4532-81a8-09f409712e64",
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053",
+                "d4505c5b-41e7-4eb1-b1d6-d1601316dfb3"
+            ],
+            "retrieved_ids": [
+                "bb4924a9-a7d3-4a19-b43c-e0eb44c74053",
+                "9864d118-485b-4daf-aa4e-5c1ab48f830a",
+                "aacf908d-48e4-44b7-846b-d818a0b44af4",
+                "0a25b3a4-b428-4842-9643-d73cc161326c",
+                "06aea6cd-dff4-4b71-9168-955f552020cf"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.2,
+                "recall": 0.3333,
+                "mrr": 1.0,
+                "map": 0.3333
+            }
+        },
+        {
+            "query": "What are the specific validation rules for creating a new task, and how does the backend ensure the user has permission to create a task in a specific board and list?",
+            "ground_truth_answer": "The `createTask` function requires `user_id`, `title`, `deadline`, `board_id`, `status`, and `list_id` to be present. It validates that the specified `board_id` belongs to the requesting `user_id` and that the specified `list_id` belongs to that same `board_id`. The `getTasks` function enforces similar logic, checking if the user ID matches the board's user ID or if the board visibility is 'Public' before allowing access.",
+            "true_relevant_ids": [
+                "52e8f2d1-4ae7-4219-b351-f5140ff49490",
+                "6d9e097b-9ada-46be-bb4a-be6f7ea7b836"
+            ],
+            "retrieved_ids": [
+                "80d43ff1-7077-4db6-80ea-738a33029378",
+                "bf22898a-3950-4c44-b898-6630bc909b90",
+                "84395029-ed9d-4351-970d-35b73a2ab93c",
+                "ff66ee4f-b1e2-4bee-9e43-14b9a5cee7b9",
+                "96a8daaf-33ab-4a20-b13a-99fb5228e4ae"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "When a list creation or update succeeds, how does the frontend dispatch the updated state, and what specific fields are populated from the server response?",
+            "ground_truth_answer": "Upon success, the frontend dispatches either `addList` (for creation) or `updateList` (for updates). Both actions populate the state with `title`, `_id`, `position`, `board_id`, `updated_at`, and `created_at` fields extracted directly from `responseData.data`.",
+            "true_relevant_ids": [
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "9dcf2cce-227b-4885-b280-76753cb72406",
+                "035c995b-850c-4b10-b1ef-8c9083589cac"
+            ],
+            "retrieved_ids": [
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "ef176419-5e90-43ff-871c-44e331a7b7c8",
+                "9dcf2cce-227b-4885-b280-76753cb72406",
+                "36335983-be85-4ce0-95c0-f61016e27bc0",
+                "389d0723-929f-4449-8993-7393b5125e54"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 0.6667,
+                "mrr": 1.0,
+                "map": 0.5556
+            }
+        },
+        {
+            "query": "If a user attempts to update a list but the title remains unchanged or is empty, what happens to the hover window and why?",
+            "ground_truth_answer": "The function returns early without sending a request, so the hover window is not closed via `dispatch(closeHoverWindow())`. This occurs because the validation check `!data.title || data.title == dataRecived?.title || !dataRecived?.list_id` prevents the API call when no meaningful update is detected.",
+            "true_relevant_ids": [
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "d664ff5d-d03c-400b-a2f1-dcc627889aee",
+                "9dcf2cce-227b-4885-b280-76753cb72406"
+            ],
+            "retrieved_ids": [
+                "ef176419-5e90-43ff-871c-44e331a7b7c8",
+                "d44ad64f-3808-4938-87b1-87c14f07b353",
+                "4bfc9b10-8ad5-4c38-8617-a587456e6c63",
+                "68e10359-6515-4e6a-bb97-ede74895ce69",
+                "36335983-be85-4ce0-95c0-f61016e27bc0"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "How does the `createList` service ensure a user owns the board before creating a list, and what specific fields are included in the response when a new list is successfully created?",
+            "ground_truth_answer": "The `createList` service first queries the `Board` model to verify the user owns the specified `board_id`. If ownership is not confirmed, it returns a 403 status. Upon success, it returns a 201 status with the new list data, including `_id`, `title`, `board_id`, `created_at`, `updated_at`, `position`, and an empty `cards` array.",
+            "true_relevant_ids": [
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "6562e392-773a-48a4-9777-16e56ca9b59c",
+                "035c995b-850c-4b10-b1ef-8c9083589cac"
+            ],
+            "retrieved_ids": [
+                "c8608e31-337e-4a8b-8822-de03d39f338a",
+                "4665cad0-021a-4d00-ba88-138d793aab98",
+                "9b503ae0-a3ff-4962-afda-213f0321a8ec",
+                "0e6d38d2-0a6c-4761-b284-d4b8c1336cf6",
+                "84395029-ed9d-4351-970d-35b73a2ab93c"
+            ],
+            "metrics": {
+                "hit_rate": 0,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mrr": 0.0,
+                "map": 0.0
+            }
+        },
+        {
+            "query": "How does the frontend ListForm component handle the logic to prevent unnecessary updates when a user attempts to update a list without changing its title?",
+            "ground_truth_answer": "The frontend `onSubmit` function checks if `openFor` is `'LIST_UPDATION'` and if the new title is empty, identical to the existing title, or if `list_id` is missing. If any of these conditions are true, it returns early without sending a request. The backend `updateList` function then only updates the title if the `title` property is explicitly provided in the request body.",
+            "true_relevant_ids": [
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "6562e392-773a-48a4-9777-16e56ca9b59c",
+                "d44ad64f-3808-4938-87b1-87c14f07b353"
+            ],
+            "retrieved_ids": [
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "36335983-be85-4ce0-95c0-f61016e27bc0",
+                "d664ff5d-d03c-400b-a2f1-dcc627889aee",
+                "d44ad64f-3808-4938-87b1-87c14f07b353",
+                "36c06818-71ff-4e1e-a9a6-a1e67260b57e"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 0.6667,
+                "mrr": 1.0,
+                "map": 0.5
+            }
+        },
+        {
+            "query": "What is the complete sequence of operations performed by the backend when a user updates a list's position, and how does the frontend dispatch the updated state?",
+            "ground_truth_answer": "The backend `updateList` function first shifts positions of other lists (decrementing if moving up, incrementing if moving down) using `updateMany` with `$inc`. It then performs a `findOneAndUpdate` to update the specific list. The frontend `onSubmit` dispatches an `updateList` action with the new position and includes the `prevPosition` from the original list in the response data.",
+            "true_relevant_ids": [
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "d44ad64f-3808-4938-87b1-87c14f07b353",
+                "ef176419-5e90-43ff-871c-44e331a7b7c8"
+            ],
+            "retrieved_ids": [
+                "2e2252c0-50ff-4f6d-af8e-63b30a70de74",
+                "ef176419-5e90-43ff-871c-44e331a7b7c8",
+                "5209ebd9-ef44-4554-b24b-cceb978790a0",
+                "d5ab7e25-d277-46c6-8602-660731ecc8fc",
+                "67744a87-b168-421d-9ffc-3e1ac4b127ad"
+            ],
+            "metrics": {
+                "hit_rate": 1,
+                "precision": 0.4,
+                "recall": 0.6667,
+                "mrr": 0.5,
+                "map": 0.3333
+            }
+        }
+    ]
+}
