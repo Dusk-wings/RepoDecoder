@@ -10,7 +10,7 @@ import logging
 import asyncio
 
 logger = logging.getLogger(__name__)
-embedder = Embedder(model_name="BAAI/bge-base-en-v1.5")
+embedder = Embedder(model_name="snowflake/snowflake-arctic-embed-xs")
 
 
 async def get_chunks():
