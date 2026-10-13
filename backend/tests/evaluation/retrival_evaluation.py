@@ -13,7 +13,7 @@ from app.rag.embedder.embedder import Embedder
 from app.core.config import env_config
 
 retriver = Retrival()
-embedder = Embedder()
+embedder = Embedder(model_name="BAAI/bge-small-en-v1.5")
 
 REPO_ID = UUID(env_config.REPO_ID or "")
 
@@ -21,15 +21,15 @@ REPO_ID = UUID(env_config.REPO_ID or "")
 async def retrival(query: str, top_k: int):
     embedded_query = await asyncio.to_thread(lambda: embedder.embed(query))
     searcher = list(embedded_query)[0].tolist()
-    vec = await retriver._retrive_by_vector_distance(
+    retrived_doc = await retriver._retrive_by_vector_distance(
         embeded_query=searcher, repo_id=REPO_ID
     )
-    trg = await retriver._retrive_by_trigram_similarity(query=query, repo_id=REPO_ID)
+    # trg = await retriver._retrive_by_trigram_similarity(query=query, repo_id=REPO_ID)
     # retrived_doc = await retriver._retrive_by_fts(
     #     query=query, repo_id=REPO_ID
     # )
     # retrived_doc = await retriver.retrive(query, embedded_query, REPO_ID, top_chunk=top_k)
-    retrived_doc = retriver._merge_results_rrf_multi([vec, trg])
+    # retrived_doc = retriver._merge_results_rrf_multi([vec, trg])
     return retrived_doc[:top_k]
 
 
@@ -118,7 +118,8 @@ async def run_local_rag_evaluation(
 
     # 3. Calculate summary averages
     summary = {
-        "used_tech": ["trigram", "vector"],
+        "used_tech": ["vector"],
+        "model_name": "BAAI/bge-small-en-v1.5",
         "total_queries": len(dataset),
         "top_k": top_k,
         "mean_hit_rate": round(float(np.mean(hit_rates)), 4),
@@ -145,7 +146,7 @@ async def run_local_rag_evaluation(
 FILE_PATH = (
     "/home/user/Documents/Project_5/backend/tests/evaluation/golden_dataset_syn.json"
 )
-OUTPUT_PATH = "/home/user/Documents/Project_5/backend/tests/evaluation/reports/retrieval_eval_report_vec_trg.json"
+OUTPUT_PATH = "/home/user/Documents/Project_5/backend/tests/evaluation/reports/retrieval_eval_report_vec.json"
 
 asyncio.run(
     run_local_rag_evaluation(
