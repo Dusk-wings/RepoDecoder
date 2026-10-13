@@ -4,6 +4,7 @@ from sqlalchemy import func, Select
 import logging
 from collections.abc import Sequence
 import numpy as np
+from uuid import UUID
 
 from app.core.config import env_config
 from app.core.db import AsyncSessionLocal
@@ -60,7 +61,7 @@ class Retrival:
             )
             raise
 
-    async def _retrive_by_vector_distance(self, embeded_query):
+    async def _retrive_by_vector_distance(self, embeded_query, repo_id: UUID):
         distance = Embedding.vector.cosine_distance(embeded_query).label("distance")
         stmt = (
             select(
@@ -72,6 +73,7 @@ class Retrival:
                 distance,
             )
             .join(RepoFile, RepoFile.file_id == Embedding.file_id)
+            .where(Embedding.repo_id == repo_id)
             .order_by(distance)
             .limit(20)
         )
@@ -86,7 +88,7 @@ class Retrival:
             )
             raise
 
-    async def _retrive_by_trigram_similarity(self, query: str):
+    async def _retrive_by_trigram_similarity(self, query: str, repo_id: UUID):
         lexical_score = func.similarity(Embedding.chunk_str, query).label("similarity")
         stmt = (
             select(
@@ -99,7 +101,8 @@ class Retrival:
             )
             .join(RepoFile, RepoFile.file_id == Embedding.file_id)
             .where(
-                func.similarity(Embedding.chunk_str, query) > 0.05
+                func.similarity(Embedding.chunk_str, query) > 0.05,
+                Embedding.repo_id == repo_id,
             )  # Filter out completely irrelevant text
             .order_by(lexical_score.desc())
             .limit(20)
@@ -115,7 +118,7 @@ class Retrival:
             )
             raise
 
-    async def _retrive_by_fts(self, query: str):
+    async def _retrive_by_fts(self, query: str, repo_id: UUID):
         ts_query = func.plainto_tsquery("english", query)
         fts_score = func.ts_rank(
             func.to_tsvector("english", Embedding.chunk_str), ts_query
@@ -132,7 +135,10 @@ class Retrival:
             )
             .join(RepoFile, RepoFile.file_id == Embedding.file_id)
             # Perform FTS match: to_tsvector(chunk_str) @@ plainto_tsquery(query)
-            .where(func.to_tsvector("english", Embedding.chunk_str).op("@@")(ts_query))
+            .where(
+                func.to_tsvector("english", Embedding.chunk_str).op("@@")(ts_query),
+                Embedding.repo_id == repo_id,
+            )
             .order_by(fts_score.desc())
             .limit(20)
         )
@@ -159,18 +165,24 @@ class Retrival:
             {"role": "user", "content": query},
         ]
 
-        new_prompt = await generator.LLM(model="groq/qwen/qwen3.8-27b", messages=messages)
+        new_prompt = await generator.LLM(
+            model="groq/qwen/qwen3.8-27b", messages=messages
+        )
         return new_prompt
 
-    async def retrive(self, query: str, embedded_query, top_chunk: int = 20):
+    async def retrive(
+        self, query: str, embedded_query, repo_id: UUID, top_chunk: int = 20
+    ):
         try:
             searcher = list(embedded_query)[0].tolist()
 
             vector_chunks = await self._retrive_by_vector_distance(
-                embeded_query=searcher
+                embeded_query=searcher, repo_id=repo_id
             )
-            lexical_chunks = await self._retrive_by_trigram_similarity(query=query)
-            fts_chunks = await self._retrive_by_fts(query=query)
+            lexical_chunks = await self._retrive_by_trigram_similarity(
+                query=query, repo_id=repo_id
+            )
+            fts_chunks = await self._retrive_by_fts(query=query, repo_id=repo_id)
 
             top_chunks = self._merge_results_rrf_multi(
                 result_lists=[vector_chunks, lexical_chunks, fts_chunks],
