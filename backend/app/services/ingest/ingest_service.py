@@ -96,7 +96,7 @@ class Ingest(GithubClient):
         self.dep_parser = DependenciesParser()
         self.pdf_parser = PdfParser()
 
-        self.embedder = Embedder()
+        self.embedder = Embedder(model_name=env_config.EMBEDDING_MODEL_NAME)
 
     def _parse_tabular_data_to_str(self, data: dict) -> str:
         try:
