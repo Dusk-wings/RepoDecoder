@@ -82,16 +82,24 @@ class Embedder:
                     f"Expected {len(content)}, got {len(embeddings)}."
                 )
 
-            return [
-                {
-                    "content": item["chunk"],
-                    "embedding_text": item["embedding_str"],
-                    "embedding": embedding.tolist(),
-                    "file_id": file_id,
-                    "repo_id": repo_id,
-                }
-                for item, embedding in zip(content, embeddings)
-            ]
+            if file_id:
+                return [
+                    {
+                        "content": item["chunk"],
+                        "embedding_text": item["embedding_str"],
+                        "embedding": embedding.tolist(),
+                        "file_id": file_id,
+                        "repo_id": repo_id,
+                    }
+                    for item, embedding in zip(content, embeddings)
+                ]
+            if "embed_id" in content[0]:
+                return [
+                    {"embed_id": item["embed_id"], "vector": embedding}
+                    for item, embedding in zip(content, embeddings)
+                ]
+            else:
+                return []
 
         except Exception:
             logger.exception("[EMBEDDER] ERROR GENERATING EMBEDDINGS")
