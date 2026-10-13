@@ -52,7 +52,7 @@ class Embedder:
                         f"Content item at index {index} must be a dictionary."
                     )
 
-                if ["embed_id", "chunk_str"] in item:
+                if "chunk_str" in item:
                     embedding_text = item["chunk_str"]
                 elif "embedding_str" in item:
                     embedding_text = item["embedding_str"]
