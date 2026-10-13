@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     GITHUB_USER: str | None = None
     GITHUB_REPO: str | None = None
     GITHUB_TOKEN: str | None = None
-
+    REPO_ID: str | None = None
+    EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
+    
     model_config = SettingsConfigDict(
         env_file=ENV_FILE_PATH if ENV_FILE_PATH.exists() else None,
         env_file_encoding="utf-8",
