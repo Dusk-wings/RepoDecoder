@@ -247,7 +247,7 @@ class Chat:
             lambda: self.embedder.embed(text=query)
         )
         retrieved_content = await self.retriver.retrive(
-            query=query, embedded_query=embedded_query
+            query=query, embedded_query=embedded_query, repo_id=repo_id
         )
         history = await self.fetch_chat_history(chat_id=chat_id)
         context = await self.context_formatter(retrieved_content, repo_id)
