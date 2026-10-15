@@ -12,25 +12,85 @@ from app.rag.retrival.retrival import Retrival
 from app.rag.embedder.embedder import Embedder
 from app.core.config import env_config
 
+from fastembed.rerank.cross_encoder import TextCrossEncoder
+
+# print(TextCrossEncoder.list_supported_models())
+encoder = "Xenova/ms-marco-MiniLM-L-6-v2"
+reranker = TextCrossEncoder(model_name=encoder)
+
 retriver = Retrival()
 embedder = Embedder(model_name="BAAI/bge-small-en-v1.5")
 
 REPO_ID = UUID(env_config.REPO_ID or "")
 
 
+async def rerank(query: str, docs: list[dict], top_k):
+    chunks = [item["chunk_str"] for item in docs]
+    scores = list(reranker.rerank(query, chunks))
+
+    ranked_items = sorted(zip(scores, docs), key=lambda pair: pair[0], reverse=True)
+    results = [{**item, "rerank_score": score} for score, item in ranked_items]
+    return results[:top_k]
+
+
 async def retrival(query: str, top_k: int):
-    embedded_query = await asyncio.to_thread(lambda: embedder.embed(query))
-    searcher = list(embedded_query)[0].tolist()
-    retrived_doc = await retriver._retrive_by_vector_distance(
-        embeded_query=searcher, repo_id=REPO_ID
-    )
+    rrf_array = []
+    # embedded_query = await asyncio.to_thread(lambda: embedder.embed(query))
+    # searcher = list(embedded_query)[0].tolist()
+    # vec = await retriver._retrive_by_vector_distance(
+    #     embeded_query=searcher, repo_id=REPO_ID
+    # )
     # trg = await retriver._retrive_by_trigram_similarity(query=query, repo_id=REPO_ID)
+    # rrf_array.append(vec)
+    # rrf_array.append(trg)
     # retrived_doc = await retriver._retrive_by_fts(
     #     query=query, repo_id=REPO_ID
     # )
+    # retrived_doc = await retriver._retrive_by_fts(query=query, repo_id=REPO_ID)
     # retrived_doc = await retriver.retrive(query, embedded_query, REPO_ID, top_chunk=top_k)
-    # retrived_doc = retriver._merge_results_rrf_multi([vec, trg])
-    return retrived_doc[:top_k]
+    type = "error"
+    content = ""
+    count = 0
+    while type != "success" and content == "" and count < 4:
+        count += 1
+        rewriten_query = await retriver._rewrite_query(query)
+        content = rewriten_query.get("content", None)
+        if content:
+            print(content)
+            embedded_query = await asyncio.to_thread(lambda: embedder.embed(content))
+            searcher = list(embedded_query)[0].tolist()
+            vec_ai = await retriver._retrive_by_vector_distance(
+                embeded_query=searcher, repo_id=REPO_ID
+            )
+            trg_ai = await retriver._retrive_by_trigram_similarity(
+              query=content, repo_id=REPO_ID
+             )
+
+            rrf_array.append(vec_ai)
+            rrf_array.append(trg_ai)
+    # rewriten_query = await retriver._rewrite_query(query, "groq/openai/gpt-oss-120b")
+    # content = rewriten_query.get("content", None)
+    # if content:
+    #     print(content)
+    #     embedded_query = await asyncio.to_thread(lambda: embedder.embed(content))
+    #     searcher = list(embedded_query)[0].tolist()
+    #     vec_ai = await retriver._retrive_by_vector_distance(
+    #         embeded_query=searcher, repo_id=REPO_ID
+    #     )
+    #     trg_ai = await retriver._retrive_by_trigram_similarity(
+    #         query=content, repo_id=REPO_ID
+    #     )
+
+    #     rrf_array.append(vec_ai)
+    #     rrf_array.append(trg_ai)
+    if not rrf_array:
+        print("No results found for the query.")
+        # return {"docs": [], "ai_query": content}
+        raise ValueError(
+            f"No results found for the query. query: {query}, rewriten_query: {content}"
+        )
+    retrived_doc = retriver._merge_results_rrf_multi(rrf_array)
+    return {"docs": retrived_doc[:top_k], "ai_query": content}
 
 
 async def run_local_rag_evaluation(
@@ -60,7 +120,10 @@ async def run_local_rag_evaluation(
         # Query your local vector store (adjust based on your actual vector store API)
         # Assuming similarity_search returns documents where metadata contains the "id"
         retrieved_docs = await retrival(query, top_k)
-        retrieved_ids = [str(doc["embed_id"]) for doc in retrieved_docs]
+        docs = retrieved_docs["docs"]
+        ai_query = retrieved_docs.get("ai_query")
+        # rd = await rerank(ai_query if ai_query else query, docs, top_k)
+        retrieved_ids = [str(doc["embed_id"]) for doc in docs]
 
         # Compute hits for strict ID matching
         hits = [1 if r_id in true_ids else 0 for r_id in retrieved_ids]
@@ -118,8 +181,9 @@ async def run_local_rag_evaluation(
 
     # 3. Calculate summary averages
     summary = {
-        "used_tech": ["vector"],
+        "used_tech": ["vector", "trigram", "query rewriting", ],
         "model_name": "BAAI/bge-small-en-v1.5",
+        "rewriting_model": "groq/qwen/qwen3.8-27b",
         "total_queries": len(dataset),
         "top_k": top_k,
         "mean_hit_rate": round(float(np.mean(hit_rates)), 4),
@@ -146,12 +210,12 @@ async def run_local_rag_evaluation(
 FILE_PATH = (
     "/home/user/Documents/Project_5/backend/tests/evaluation/golden_dataset_syn.json"
 )
-OUTPUT_PATH = "/home/user/Documents/Project_5/backend/tests/evaluation/reports/retrieval_eval_report_vec.json"
+OUTPUT_PATH = "/home/user/Documents/Project_5/backend/tests/evaluation/reports/retrieval_eval_vec_trg_rewrite_final.json"
 
 asyncio.run(
     run_local_rag_evaluation(
         json_path=FILE_PATH,
-        top_k=5,
+        top_k=8,
         output_path=OUTPUT_PATH,
     )
 )
