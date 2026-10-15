@@ -62,7 +62,7 @@ class Generator:
                 max_completion_tokens=max_tokens,
             )
 
-            return {"type": "success", "content": response.choices[0].message}
+            return {"type": "success", "content": response.choices[0].message.content}
 
         except openai.RateLimitError as e:
             logger.exception(f"[LLM]: {e}")
