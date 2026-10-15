@@ -5,6 +5,7 @@ from pgvector.sqlalchemy import Vector
 from datetime import datetime
 from typing import TYPE_CHECKING
 import uuid
+from sqlalchemy.dialects.postgresql import TSVECTOR
 
 if TYPE_CHECKING:
     from models.repository import Repository
@@ -32,6 +33,7 @@ class Embedding(Base):
     vector: Mapped[list[float]] = mapped_column(Vector(384), nullable=False)
 
     created_on: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
 
     file: Mapped["RepoFile"] = relationship(
         "RepoFile",
