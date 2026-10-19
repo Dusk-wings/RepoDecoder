@@ -1,0 +1,1067 @@
+{
+  "summary": {
+    "total_queries": 41,
+    "scored_queries": 40,
+    "average_scores": {
+      "correctness": 1.45,
+      "faithfulness": 1.65,
+      "completeness": 1.425
+    },
+    "evaluation_model": "ollama/qwen3.5:4b"
+  },
+  "per_query_results": [
+    {
+      "dataset_index": 0,
+      "query": "In the listNamespace, how are the 'delete-list' and 'update-list' events processed, and what common validation checks are performed before emitting the respective events?",
+      "ground_truth_answer": "Both 'delete-list' and 'update-list' events require the socket to have a valid board_id and user_id, and the board must exist in boardUsersMap. If any of these conditions fail, an appropriate error is emitted before the event is processed.",
+      "generated_answer": "Based on the provided repository context, here is how the `delete-list` and `list-update` events are processed within the `listNamespace` function:\n\n### 1. Event Registration in `listNamespace`\nInside the `listNamespace` function, the Socket.IO server listens for two specific events from connected clients (lines 18–22):\n*   **`\"delete-list\"`**: Triggers the `handelListDelete` function.\n*   **`\"list-update\"`**: Triggers the `handelListUpdate` function.\n\n```typescript\nsocket.on(\"delete-list\", (data) => {\n    handelListDelete(namespace, socket, data);\n});\nsocket.on(\"list-update\", (data) => {\n    handelListUpdate(namespace, socket, data);\n});\n```\n\n*(Note: The question asked about an 'update-list' event, but the code explicitly registers `\"list-update\"`).*\n\n### 2. Common Validation Checks\nBoth `handelListDelete` and `handelListUpdate` perform the following three identity and permission checks before proceeding. If any of these checks fail, the server emits an `\"error\"` event back to the specific socket and terminates the function execution:\n\n1.  **Board Association**: Checks if `socket.data.board_id` exists.\n    *   *Failure Message*: `\"User is not connected to any board\"`\n2.  **User Identification**: Checks if `socket.data.user_id` exists.\n    *   *Failure Message*: `\"User ID is required\"`\n3.  **Board Access**: Checks if the `board_id` exists in the `boardUsersMap`.\n    *   *Failure Message*: `\"User is not connected to any board\"`\n\n### 3. Specific Event Processing\nOnce the common validations are passed, the handlers perform unique actions by broadcasting messages to all sockets in the same board (using `nameSpace.to(board_id).emit`):\n\n*   **Delete Process (`handelListDelete`, lines 31-50)**:\n    Emits a `\"list-deleted\"` event containing the `list_id` provided in the incoming data.\n    ```typescript\n    nameSpace.to(board_id).emit(\"list-deleted\", { list_id: data.list_id });\n    ```\n\n*   **Update Process (`handelListUpdate`, lines 52-71)**:\n    Emits a `\"list-updated\"` event containing the entire updated data object (typed as `listUpdateType`).\n    ```typescript\n    nameSpace.to(board_id).emit(\"list-updated\", { list: data });\n    ```",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly identifies that both events require a valid board_id and user_id, and that the board must exist in boardUsersMap. It accurately describes the error emission and the specific events emitted after validation. It correctly notes the event name is 'list-update' in the code although the prompt said 'update-list'."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are directly supported by the retrieved code chunks. The event registrations, function calls, validation checks (board_id, user_id, boardUsersMap.has), error messages, and final emit logic are all explicitly present in the provided chunks for `listNamespace`, `handelListDelete`, and `handelListUpdate`."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential information from the ground truth: the common validation checks (board_id, user_id, boardUsersMap existence), the error handling, and the specific actions taken for each event (emitting 'list-deleted' and 'list-updated')."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 1,
+      "query": "What happens to the auth slice state when the loginUser thunk is rejected?",
+      "ground_truth_answer": "When loginUser is rejected, the auth slice sets state.error to the payload (an AuthError object) and sets state.loadingAuth to false.",
+      "generated_answer": "Looking at the retrieved context, I can find the relevant code in the **\"Global Scope Variables (part 2)\"** chunk, which shows the `extraReducers` handler for when the `loginUser` thunk is rejected.\n\nWhen the `loginUser` thunk is rejected, the following happens to the auth slice state:\n```typescript\nbuilder.addCase(loginUser.rejected, (state, action) => {\n    state.error = action.payload as AuthError;\n    state.loadingAuth = false;\n})\n```\n\nSpecifically:\n1. `state.error` is set to the `action.payload` (cast as `AuthError`)\n2. `state.loadingAuth` is set to `false`\n\nThe `error` field will contain an `AuthError` object, which has the following structure (from the **\"AuthError\"** interface, lines 24-27):\n```typescript\ninterface AuthError {\n    status: number;\n    error: string;\n}\n```\n\nIn the **`loginUser`** thunk (from **\"Global Scope Variables (part 1)\"**), the thunk rejects with this structure when:\n- The initial `GET /api/users` request fails and the refresh token attempt also fails, setting:\n  ```typescript\n  rejectWithValue({\n      status: checkAuth.status,\n      error: checkAuth.statusText,\n  })\n  ```\n- An error is thrown during the process (e.g., network error), setting:\n  ```typescript\n  rejectWithValue({\n      status: 500,\n      error: \"Internal Server Error\",\n  })\n  ```\n\nSo upon rejection, the auth slice's `user` remains `null`, `isAuth` remains `false`, `loadingAuth` becomes `false`, and `error` is populated with the rejection payload containing an HTTP status code and an error message.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer accurately identifies that state.error is set to the payload (cast as AuthError) and state.loadingAuth is set to false when the loginUser thunk is rejected. This matches the ground truth exactly. It also correctly notes that other state variables (user, isAuth) remain unchanged, which is consistent with the code logic."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "The answer is fully supported by the retrieved code chunks. The 'Global Scope Variables (part 2)' chunk explicitly shows the `loginUser.rejected` handler setting `state.error` and `state.loadingAuth`. The 'AuthError' interface chunk confirms the structure of the error object. The 'Global Scope Variables (part 1)' chunk supports the details about how the rejection payload is constructed."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential information required to answer the question. It specifies the exact state changes (`error` and `loadingAuth`) and provides helpful context about the error object structure, fully addressing the prompt."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 2,
+      "query": "How does the backend ensure that a user can only update a board they own, and what happens if the board is not found?",
+      "ground_truth_answer": "The backend uses `Board.findOneAndUpdate` with a filter `{ _id: board_id, user_id: user_id }` to ensure only the owner can update the board. If the board is not found, it returns a 404 status with the message 'Board not found'.",
+      "generated_answer": "Based on the retrieved context, here's how the backend ensures ownership and handles missing boards during an update:\n\n### 1. Ensuring the User Can Only Update a Board They Own\n\nThe ownership check is enforced at the **MongoDB query level** within the `updateBoard` service function (lines 43–79).\n\nWhen `Board.findOneAndUpdate` is called, the filter object explicitly includes the `user_id` alongside the `board_id`:\n\n```javascript\nconst board = await Board.findOneAndUpdate(\n    { _id: board_id, user_id: user_id }, // <-- Ownership check\n    { $set: update },\n    { runValidators: true, new: true }\n)\n```\n\n*   **Mechanism:** The database query only matches a board if **both** the `_id` matches the provided `board_id` **and** the `user_id` matches the authenticated user's ID (passed from the controller `req.user?.id`).\n*   **Result:** If a user attempts to update a board they do not own, the query returns no results because the `user_id` constraint fails, effectively preventing the update.\n\n### 2. What Happens If the Board Is Not Found\n\nIf the `Board.findOneAndUpdate` call returns `null` (which happens if the ID doesn't exist **or** if the user doesn't own it), the service handles it as follows:\n\n1.  It checks for the existence of the returned `board` object:\n    ```javascript\n    if (!board) {\n        return {\n            status: 404,\n            message: \"Board not found\"\n        }\n    }\n    ```\n2.  It returns a **404 Not Found** status with the message `\"Board not found\"`.\n\nThis response then propagates back through the controller (`updateBoard` handler, lines 42–57), which sends the status and message directly to the client:\n\n```javascript\nres.status(board.status).json({\n    message: board.message,\n    data: board.data\n})\n```\n\nIn summary, the backend treats \"unowned\" boards the same as \"non-existent\" boards to prevent information leakage about the existence of other users' boards.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly identifies that the backend uses `Board.findOneAndUpdate` with a filter including both `_id` and `user_id` to ensure ownership. It also correctly states that a 404 status with the message 'Board not found' is returned if the board is not found (either due to non-existence or lack of ownership). This matches the ground truth perfectly."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are directly supported by the retrieved code chunks. The `updateBoard` service chunk (lines 43-79) shows the `findOneAndUpdate` call with the specific filter `{ _id: board_id, user_id: user_id }` and the `if (!board)` check returning status 404 and message 'Board not found'. The controller chunk (lines 42-57) confirms how this response is propagated to the client."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers both parts of the user's question: the mechanism for ownership enforcement and the specific outcome when the board is not found. It provides sufficient detail from the code to explain the behavior."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 3,
+      "query": "When fetching a single board by ID, how does the backend handle visibility settings to allow public boards to be accessed by anyone?",
+      "ground_truth_answer": "The `getBoardById` function uses an `$or` condition in the query to match either the specific `user_id` or if the board's `visibility` is 'public'. This allows public boards to be fetched by any user, while private boards are restricted to their owner.",
+      "generated_answer": "I couldn't find relevant information in the available repository context to answer that. No code, documentation, or file contents were retrieved, so I can't describe how the backend handles visibility settings for public boards.\n\nIf this repository does contain board access logic, please refresh the retrieval or point me to the relevant file (e.g., a route handler, controller, or permission/visibility service for boards), and I'll explain the visibility handling based on the actual code.",
+      "evaluation": {
+        "correctness": {
+          "score": 0,
+          "reason": "The generated answer failed to provide any explanation of how the backend handles visibility settings. It explicitly stated that it could not find the information, whereas the ground truth specifies the use of an `$or` condition with `user_id` and `visibility` checks."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "The generated answer correctly reflects the state of the retrieved chunks (which were 'None'). It did not hallucinate code or logic, accurately reporting that no relevant information was available in the context provided to it."
+        },
+        "completeness": {
+          "score": 0,
+          "reason": "The answer does not cover any of the essential information required to answer the question, as it provided no technical details about the implementation."
+        }
+      },
+      "scores": {
+        "correctness": 0,
+        "faithfulness": 2,
+        "completeness": 0
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 4,
+      "query": "What is the complete authentication flow for a new user registration, including how the refresh token is created, stored, and what happens if the token storage fails?",
+      "ground_truth_answer": "When a new user registers via createUser, the system generates an access token and a refresh token. It then attempts to store the refresh token in the RefereshTokenModel with an expiration of 4 days. If this storage fails, the function returns a 500 Internal Server Error without issuing tokens. In contrast, the loginUser function always updates the existing refresh token in the database (or creates it if missing via upsert) before returning tokens.",
+      "generated_answer": "## Authentication Flow for New User Registration\n\nBased on the retrieved context, here is the complete authentication flow:\n\n### 1. HTTP Controller: `createUser` (lines 11–36)\n\nThe route controller receives the request and delegates to a service:\n\n```typescript\nconst createUser = async (req: Request, res: Response, next: NextFunction) => {\n    const result = await createUserService(req.body)\n    if (result.status === 200) {\n        res.cookie('refresh_token', result.refresh_token, {\n            httpOnly: true,\n            secure: false,\n            maxAge: 1000 * 60 * 60 * 24 * 4\n        })\n        res.cookie('access_token', result.access_token, {\n            httpOnly: true,\n            secure: false,\n            maxAge: result.access_token_expires_in\n        })\n        return res.status(result.status).json({\n            user_id: result.user_id,\n            message: result.message\n        })\n    }\n    return res.status(result.status).json({ message: result.message })\n}\n```\n\nKey points:\n- The **refresh token** is set as an **httpOnly cookie** with a max age of **4 days** (1000 × 60 × 60 × 24 × 4 ms).\n- The **access token** is also set as an httpOnly cookie with a max age equal to `access_token_expires_in`.\n- On success (status 200), it returns `{ user_id, message }`.\n- On failure, it simply returns `{ message }` with the error status.\n\n---\n\n### 2. Service Layer: `createUser` (lines 11–50)\n\nThis is where the actual business logic happens:\n\n```typescript\nconst createUser = async (data: UserDataType) => {\n    try {\n        const doesUserExist = await UserModel.findOne({ email: data.email })\n        if (doesUserExist) {\n            return { status: 400, message: \"User already registered\" }\n        }\n\n        const hashedPassword = await bcrypt.hash(data.password, parseInt(env.salt_round || \"10\"));\n        try {\n            const user = await UserModel.create({\n                name: data.name,\n                email: data.email,\n                password: hashedPassword\n            })\n            const [accessToken, expiresIn] = accessTokenGenrator(user.id);\n            const refreshToken = refreshTokenGenrator();\n\n            try {\n                await RefereshTokenModel.create({\n                    user_id: user.id,\n                    token: refreshToken,\n                    expires_at: new Date().getTime() + 1000 * 60 * 60 * 24 * 4\n                })\n                return { status: 200, user_id: user.id, access_token: accessToken,\n                         refresh_token: refreshToken, message: \"User Created\",\n                         access_token_expires_in: expiresIn };\n            } catch (error) {\n                console.log(error);\n                return { status: 500, message: \"Internal Server Error\" }\n            }\n        } catch (error) {\n            console.log(error);\n            return { status: 500, message: \"Internal Server Error\" }\n        }\n    } catch (error) {\n        console.log(error);\n        return { status: 500, message: \"Internal Server Error\" }\n    }\n}\n```\n\n**Step-by-step:**\n\n1. **Duplicate check** – Looks up `UserModel` by email. If found, returns `{ status: 400, message: \"User already registered\" }`.\n2. **Password hashing** – Uses `bcrypt.hash` with a configurable salt round (`env.salt_round`, default `\"10\"`).\n3. **User creation** – Inserts the user into `UserModel` with `name`, `email`, and `password` (hashed).\n4. **Token generation** –\n   - Calls `accessTokenGenrator(user.id)` which returns a tuple `[accessToken, expiresIn]`.\n   - Calls `refreshTokenGenrator()` (defined at lines 2–6):\n     ```typescript\n     const refreshTokenGenrator = () => {\n         const randomByte = crypto.randomBytes(64);\n         const refreshToken = randomByte.toString(\"hex\");\n         return refreshToken;\n     }\n     ```\n     This generates a **128-character hex string** (64 random bytes encoded as hex).\n5. **Refresh token storage** –",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly identifies the registration flow: generating access/refresh tokens, storing the refresh token in the database with a 4-day expiration, and returning a 500 Internal Server Error if storage fails (which prevents token issuance via the controller's logic). It accurately reflects the ground truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are supported by the retrieved code chunks. The service layer code explicitly shows the `RefereshTokenModel.create` call and the catch block returning `{ status: 500, message: \"Internal Server Error\" }`. The controller code shows that tokens are only set as cookies if `result.status === 200`. The token generation logic matches `refereshTokenGenrator.ts`."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers the essential parts of the question: how the token is created (crypto random bytes), how it is stored (DB model with expiration), and what happens on failure (500 error, no tokens issued). Although the text cuts off at step 5 in the numbering, the code block and preceding explanation fully answer the specific sub-question about storage failure."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 7
+    },
+    {
+      "dataset_index": 6,
+      "query": "How does the `refereshToken` function validate a refresh token, and what specific conditions cause it to return a 404 error versus a 500 error?",
+      "ground_truth_answer": "The `refereshToken` function first checks if the provided refresh token exists in the `RefereshTokenModel`. If the token is not found, it returns a 404 error. If the token exists but its `expires_at` timestamp is less than the current time (`Date.now()`), it returns a 404 error for an expired token. If the token is valid but an error occurs during the subsequent update or user fetch operations, it returns a 500 Internal Server Error.",
+      "generated_answer": "## `refereshToken` Function: Refresh Token Validation & Error Conditions\n\nThe `refereshToken` function (lines 113–151) validates a refresh token by checking its existence and expiry, then rotates the token if valid. Below is the step-by-step breakdown:\n\n### Token Validation Steps\n\n1. **Find the token in the database:**\n   ```typescript\n   const doesTokenExist = await RefereshTokenModel.findOne({ token: refresh_token })\n   ```\n   It queries `RefereshTokenModel` using the provided `refresh_token` as the lookup key.\n\n2. **Check if the token exists** — if not, it returns a **404** `\"Token not found\"`.\n3. **Check if the token is expired** — it compares `doesTokenExist.expires_at` against `Date.now()`:\n   ```typescript\n   if (doesTokenExist.expires_at < Date.now()) {\n       return { status: 404, message: \"Token expired\" }\n   }\n   ```\n   If expired, it also returns a **404** `\"Token expired\"`.\n\n4. **If the token is valid**, it:\n   - Generates a new access token via `accessTokenGenrator(doesTokenExist.user_id)`\n   - Generates a new refresh token via `refreshTokenGenrator()`\n   - Updates the stored refresh token in `RefereshTokenModel` (`updateOne`), setting a new expiry of **4 days** from now (`Date.now() + 1000 * 60 * 60 * 24 * 4`)\n   - Fetches the user via `getUser({ user_id: ... })` and returns a `200` response with the new tokens\n\n---\n\n### Specific Conditions for Each Error Code\n\n| Status Code | Condition | Where Defined |\n|---|---|---|\n| **404 – `\"Token not found\"`** | `RefereshTokenModel.findOne({ token: refresh_token })` returns no match (the token does not exist in the DB) | lines ~122–124 |\n| **404 – `\"Token expired\"`** | The found token's `expires_at` is earlier than the current time (`doesTokenExist.expires_at < Date.now()`) | lines ~125–127 |\n| **500 – `\"Internal Server Error\"`** | Any thrown error in either of two nested `try/catch` blocks (see below) | lines ~143–145 and ~147–150 |\n\n#### What triggers the **500** errors:\nThere are **two** `try/catch` blocks in `refereshToken` that both return `{ status: 500, message: \"Internal Server Error\" }` on catch:\n\n1. **Inner catch (lines ~143–145):** Any error thrown during the token rotation step:\n   ```typescript\n   try {\n       await RefereshTokenModel.updateOne({ token: refresh_token }, { token: newRefreshToken, expires_at: ... })\n       const userResponse = await getUser({ user_id: doesTokenExist.user_id })\n       // ... return 200 response\n   } catch (error) {\n       return { status: 500, message: \"Internal Server Error\" }\n   }\n   ```\n   This catches failures in the database `updateOne` call **or** in the `getUser` fetch.\n\n2. **Outer catch (lines ~147–150):** Any error thrown earlier in the function — i.e., during `RefereshTokenModel.findOne`, the expiry check, or the calls to `accessTokenGenrator` / `refreshTokenGenrator`:\n   ```typescript\n   } catch (error) {\n       console.log(error);\n       return { status: 500, message: \"Internal Server Error\" }\n   }\n   ```\n\n---\n\n### Summary\n\n| Outcome | Trigger |\n|---|---|\n| **404 \"Token not found\"** | The `refresh_token` provided has **no matching record** in `RefereshTokenModel`. |\n| **404 \"Token expired\"** | A record exists, but its `expires_at` timestamp is **in the past**. |\n| **500 \"Internal Server Error\"** | An **unhandled exception** is thrown — either during the initial token lookup/`accessTokenGenrator`/`refreshTokenGenrator` (outer `catch`), or during the token rotation `updateOne` / `getUser` call (inner `catch`). |",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer accurately describes the validation flow and correctly identifies the specific conditions for 404 (token not found, token expired) and 500 (errors during fetch/update operations) responses, matching the ground truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are directly supported by the retrieved code chunks, specifically 'refereshToken (part 1)' and 'refereshToken (part 2)' from 'user.services.ts', which show the database queries, expiration checks, and error handling logic."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential aspects of the question, including the validation steps, the specific triggers for 404 vs 500 errors, and the subsequent token rotation process."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 7,
+      "query": "In the test file for the refresh token route, how is the mock for `refereshToken` configured, and what specific request payload is sent to the `/api/users/refresh-token` endpoint?",
+      "ground_truth_answer": "The test mocks `RefereshTokenModel` as `mockRefreshTokenModel`. The request to `/api/users/refresh-token` is a POST that includes the `refresh_token` cookie and sends a JSON body containing `{ user_id: \"1\" }`.",
+      "generated_answer": "To determine how the mock for `refereshToken` is configured and what specific request payload is sent to the `/api/users/refresh-token` endpoint, I analyzed the provided global variable contexts.\n\n### 1. Mock Configuration for `refereshToken`\n\nIn the context related to the refresh token tests, the mock configuration for `refereshToken` is partially visible. It is commented out and specifically mocks the utility function `refreshTokenGenrator`, not the `refereshToken` function itself, although the context mentions `mockRefereshToken`.\n\nRelevant code snippet:\n```typescript\n// jest.mock(\"@src/utils/refreshTokenGenrator\", () => ({\n//     refreshTokenGenrator: jest.fn(() => \"fake-refresh-token\"),\n// }));\n...\nconst mockRefreshTokenModel =\n    RefereshTokenModel as jest.Mocked<typeof RefereshTokenModel>;\n...\nconst result = await refereshToken(\"fake-refresh-token\");\n```\n\nAnother context shows a declaration for `mockRefereshToken`:\n```typescript\nconst mockRefereshToken = refereshToken as jest.Mock;\n```\n\nHowever, the exact `jest.mock` factory function for `refereshToken` itself is not explicitly defined in the retrieved global variables; only the commented-out mock for `refreshTokenGenrator` and the cast of `refereshToken` to `jest.Mock` are visible.\n\n### 2. Request Payload to `/api/users/refresh-token`\n\nThe specific request payload sent to the `/api/users/refresh-token` endpoint is consistently observed across the retrieved contexts as an object containing a `user_id` property.\n\nRelevant code snippets:\n```typescript\nconst res = await request(app).post('/api/users/refresh-token').set('Cookie', ['refresh_token=fake-refresh-token']).send({\n    user_id: \"1\",\n})\n\nconst res = await request(app).post('/api/users/refresh-token').send({\n    user_id: \"1\",\n})\n```\n\nIn both cases, the payload is:\n```json\n{\n    \"user_id\": \"1\"\n}\n```\n\n### Conclusion\n\n*   **Mock Configuration:** The `refereshToken` function is cast to `jest.Mock` (`const mockRefereshToken = refereshToken as jest.Mock;`). Additionally, there is a commented-out mock for `refreshTokenGenrator` which returns `\"fake-refresh-token\"`.\n*   **Request Payload:** The specific request payload sent to `/api/users/refresh-token` is `{ user_id: \"1\" }`.",
+      "evaluation": "```json\n{\n  \"correctness\": {\n    \"score\": 2,\n    \"reason\": \"The generated answer correctly identifies the mock configuration (`mockRefereshToken` from `refereshToken`) and the specific request payload `{ user_id: \\\"1\\\" }` sent via POST to `/api/users/refresh-token`. It aligns perfectly with the ground-truth answer, including the detail about the `refresh_token` cookie in one of the examples, though it relies on the code chunks for that detail rather than explicitly stating it as the primary mechanism in the summary sentence, it is in the body. The answer is semantically equivalent to the ground truth.\"\n  },\n  \"faithfulness\": {\n    \"score\": 2,\n    \"reason\": \"All claims are supported by the retrieved code chunks. Chunk 1 (`user.route.refreshToken.test.ts`) shows `const mockRefereshToken = refereshToken as jest.Mock;` and the POST request with `user_id: \\\"1\\\"` and the cookie. Chunk 5 (`user.service.refreshToken.test.ts`) shows the `RefereshTokenModel` mock and the commented-out `refreshTokenGenrator` mock, which the answer correctly cites and contextualizes (distinguishing it from the route mock).\"\n  },\n  \"completeness\": {\n    \"score\": 2,\n    \"reason\": \"The answer covers all essential information: how the `refereshToken` function is mocked in the route test file and the exact payload and cookie details for the request. It accurately reflects the content found in the relevant test file chunks.\"\n  }\n}\n```",
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 8,
+      "query": "What is the complete structure of the initial state for the board slice, and which specific fields from the Board, List, and Card interfaces are included in it?",
+      "ground_truth_answer": "The initial state for the board slice is defined as `boards: Board[]`, `loading: boolean`, and `error: string | null`. It only includes an array of `Board` objects, which contain `_id`, `title`, `description`, `visibility`, `created_at`, and `updated_at`. The `List` and `Card` interfaces are not part of the initial state, meaning lists and cards are not pre-initialized in the store.",
+      "generated_answer": "Based on the retrieved context, here is the complete structure for the board slice's initial state and the related interfaces.\n\n### Initial State for Board Slice\n\nThere are two `InitialState` interfaces defined in the context. The first one (lines 3–7) is the most likely candidate for a generic \"board slice\" (likely a list of boards), while the second (lines 12–16) is specific to a single board view.\n\n**1. Generic Board Slice State (Lines 3–7)**\n```typescript\ninterface InitialState {\n    boards: Board[];\n    loading: boolean;\n    error: string | null;\n}\n```\n*   **Fields:**\n    *   `boards`: An array of `Board` objects.\n    *   `loading`: A boolean flag indicating loading state.\n    *   `error`: A string for error messages or `null`.\n\n**2. Single Board Slice State (Lines 12–16)**\n```typescript\ninterface InitialState {\n    isLoading: boolean;\n    isError: string | null;\n    board: BoardInterface;\n}\n```\n*   **Fields:**\n    *   `isLoading`: A boolean flag indicating loading state.\n    *   `isError`: A string for error messages or `null`.\n    *   `board`: A single `BoardInterface` object.\n\n### Included Interfaces\n\nThe question asks which fields from `Board`, `List`, and `Card` are included. The retrieved context **does not define a `Board` interface**. It only defines `BoardInterface` (lines 8–10), `ListInterface` (lines 4–6), `List` (lines 9–16), and `Card` (lines 18–30).\n\nTherefore, the specific fields included **only** for the interfaces explicitly provided in the context are:\n\n**1. `BoardInterface` (Lines 8–10)**\n*The context does not show the underlying `Board` interface it extends, so only the added field is visible.*\n```typescript\ninterface BoardInterface extends Board {\n    lists: ListInterface[]\n}\n```\n*   **Included Field:**\n    *   `lists`: An array of `ListInterface` objects.\n    *   *(Note: All fields from the base `Board` interface are also included by extension, but that interface is not shown in the retrieved context.)*\n\n**2. `ListInterface` (Lines 4–6)**\n```typescript\ninterface ListInterface extends List {\n    cards?: Card[]\n}\n```\n*   **Included Fields:**\n    *   `cards`: An optional array of `Card` objects.\n    *   *(Note: All fields from the base `List` interface are also included by extension.)*\n\n**3. `List` (Lines 9–16)**\n```typescript\ninterface List {\n    _id: string;\n    title: string;\n    position: number;\n    board_id: string;\n    created_at: string;\n    updated_at: string;\n}\n```\n*   **Included Fields:**\n    *   `_id`, `title`, `position`, `board_id`, `created_at`, `updated_at`.\n\n**4. `Card` (Lines 18–30)**\n```typescript\ninterface Card {\n    _id: string;\n    user_id: string,\n    board_id: string,\n    title: string,\n    description: string,\n    deadline: string,\n    list_id: string,\n    status: 'Todo' | 'In Progress' | 'Completed',\n    created_at: string,\n    updated_at: string,\n    position: number\n}\n```\n*   **Included Fields:**\n    *   `_id`, `user_id`, `board_id`, `title`, `description`, `deadline`, `list_id`, `status`, `created_at`, `updated_at`, `position`.\n\n### Summary of Direct Inclusion in `InitialState`\n\n*   **From `Board`/`BoardInterface`:**\n    *   In the first `InitialState`: `boards` (array of `Board`).\n    *   In the second `InitialState`: `board` (single `BoardInterface`).\n*   **From `List`/`ListInterface`:**\n    *   Not directly in `InitialState`. Included indirectly via `BoardInterface.lists` (which is an array of `ListInterface`).\n*   **From `Card`:**\n    *   Not directly in `InitialState` or `BoardInterface`. Included indirectly via `ListInterface.cards` (which is an optional array of `Card",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly identifies the initial state structure of the specific `boardSlice.ts` file (boards, loading, error) and notes that Lists and Cards are not directly in this state. However, it introduces a second 'InitialState' from `currentData.ts`, which is not the 'board slice' referred to in the question (based on the file path in the ground truth). This creates unnecessary confusion and implies multiple valid answers when the question refers to a specific slice. Additionally, it fails to explicitly list the fields of the `Board` interface because that chunk was not retrieved, whereas the ground truth expects this information (implying it should be known or inferred, or that the RAG system failed to retrieve it, but the answer claims it's missing from context)."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "The answer is strictly faithful to the retrieved chunks. It correctly reports that the `Board` interface definition is not present in the provided context, and it accurately lists the fields of `List`, `Card`, `BoardInterface`, and `ListInterface` based on the retrieved code. It does not hallucinate the contents of the `Board` interface."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer misses the specific fields of the `Board` interface (`_id`, `title`, `description`, `visibility`, `created_at`, `updated_at`) which are explicitly required by the ground truth ('which specific fields from the Board... interfaces are included'). While the answer explains *why* it cannot list them (missing from context), it fails to provide the complete answer expected by the user based on the ground truth. It also adds irrelevant information about a different slice (`currentData.ts`)."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 2,
+        "completeness": 1
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 9,
+      "query": "How does the frontend boardSlice handle the state update when a board is modified, and which backend service is responsible for persisting those changes?",
+      "ground_truth_answer": "The frontend boardSlice updates the local state by finding the board by ID and modifying its title, description, and visibility fields. The backend service responsible for persisting these changes is updateBoard, which accepts user_id, board_id, and optional fields for title, visibility, and description.",
+      "generated_answer": "Based on the retrieved context, here is how the board update flow works:\n\n### 1. Backend Service: `updateBoard` (Service Layer)\n\nThe backend service function `updateBoard` is responsible for persisting changes to the database.\n\n**File Context:** Likely in a service file (e.g., `services/boardService.ts` or similar).\n**Code Reference:**\n```typescript\n// Lines 43-79\nconst updateBoard = async ({ user_id, board_id, title, visibility, description }: { user_id: string, board_id: string, title?: string, visibility?: string, description?: string }) => {\n    try {\n        const update: any = {}\n        if (title) update.title = title\n        if (visibility) update.visibility = visibility\n        if (description) update.description = description\n        update.updated_at = new Date()\n\n        const board = await Board.findOneAndUpdate(\n            { _id: board_id, user_id: user_id },\n            { $set: update },\n            { runValidators: true, new: true }\n        )\n        // ... returns status message and data (_id, updated_at, created_at)\n    } catch (error) {\n        // ...\n    }\n}\n```\nThis function constructs a `$set` object containing only the fields provided (`title`, `visibility`, `description`) and updates the timestamp. It targets the document by both `_id` and `user_id` to ensure the user owns the board.\n\n### 2. Backend Controller: `updateBoard` (Controller Layer)\n\nThe controller captures the request and delegates to the service above.\n\n**File Context:** Likely in a controller file (e.g., `controllers/boardController.ts`).\n**Code Reference:**\n```typescript\n// Lines 42-57\nconst updateBoard = async (req: Request, res: Response) => {\n    try {\n        const user_id = req.user?.id;\n        const { board_id, ...body } = req.body\n        const board = await updateBoardService({ user_id, board_id, ...body })\n        res.status(board.status).json({\n            message: board.message,\n            data: board.data\n        })\n    } catch (error) {\n        // ...\n    }\n}\n```\nThis extracts `user_id` from the authenticated user (`req.user`) and the rest of the payload from `req.body`. It then calls `updateBoardService` (the function described above) and sends the result back to the client.\n\n### 3. Frontend State Management: `boardSlice`\n\nThe frontend uses Redux Toolkit. The specific handler for updating an existing board is the `updateBoard` reducer inside `boardSlice`.\n\n**File Context:** Frontend slice (e.g., `store/slices/boardSlice.ts`).\n**Code Reference (Partial):**\n```typescript\n// From \"Global Scope Variables (part 1)\"\nconst boardSlice = createSlice({\n    name: \"board\",\n    initialState,\n    reducers: {\n        // ...\n        updateBoard: (state, action: PayloadAction<Board>) => {\n            const board = state.boards.find((board) => // ...\n```\nThe retrieved chunk cuts off the implementation of the `updateBoard` reducer. However, based on the variable names and standard Redux patterns visible in the same slice:\n1.  **Reducer:** `updateBoard` receives a `PayloadAction<Board>`.\n2.  **Logic:** It finds the specific board in `state.boards` where the `_id` matches the payload (presumably).\n3.  **State Update:** It replaces the found board with the new payload data.\n\n**Note on Data Flow:**\nThe retrieved context **does not contain** the specific thunk (e.g., `updateBoardThunk`) that calls the backend API endpoint to perform the update. We only see `getBoardData` (GET) and the reducers (`addBoard`, `removeBoard`, `updateBoard`). Therefore, the specific mechanism of how the frontend *triggers* the backend persistence (the HTTP call) is not explicitly shown in the provided chunks, only that the state *update* happens via the `updateBoard` reducer once the new board data is available.\n\n### Summary\n*   **Persistence:** Handled by the backend `updateBoard` service using `Board.findOneAndUpdate` with `$set`.\n*   **State Update:** Handled by the frontend `boardSlice`'s `updateBoard` reducer, which finds the board by ID and updates it within the `boards` array.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly identifies the frontend `updateBoard` reducer in `boardSlice` as handling the state update by finding the board by ID (implied by the visible code `state.boards.find((board) =>` and standard patterns) and the backend `updateBoard` service as responsible for persistence. It accurately describes the service's logic of accepting `user_id`, `board_id`, and optional fields (`title`, `visibility`, `description`), which matches the ground truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims about the backend controller and service are directly supported by the retrieved code chunks (specifically chunks 1 and 5). The description of the frontend reducer is supported by retrieved chunk 8, which shows the `updateBoard` reducer starting to find a board. The answer correctly notes that the specific HTTP call/thunk is not fully detailed in the retrieved chunks, maintaining fidelity to the provided evidence."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers both parts of the user's question: how the frontend handles the update (finding board by ID and modifying state) and which backend service persists it (`updateBoard` service with specific parameters). It provides sufficient detail to satisfy the ground-truth requirements."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 10,
+      "query": "Describe the complete flow for deleting a board, including the required data structure, the backend validation performed, and how the frontend state is updated afterward.",
+      "ground_truth_answer": "The frontend boardSlice provides a removeBoard action that filters out the board by its ID. The backend deleteBoard service receives an object containing user_id and board_id, validates that board_id is present, and then deletes the document from the Board collection if it matches the user.",
+      "generated_answer": "Based on the retrieved context from `deleteBoard.ts` and the associated frontend component, here is the description of the board deletion flow:\n\n### 1. Required Data Structure & Frontend Trigger\nAccording to the context provided, specifically in the `deleteContent (part 2)` function (lines 23-73 of the frontend file), the operation is triggered based on the `hoverState.type`:\n*   **Condition:** The frontend checks `if (hoverState.type == 'BOARD_DELETION')`.\n*   **Action:** It calls `dispatcher(removeBoard(data.data._id))` to handle the deletion. This indicates the frontend passes the board's unique identifier (`_id`) to the server.\n\n### 2. Backend Validation and Logic\nThe backend handles this via the `deleteBoard` function found in `deleteBoard.ts`:\n\n*   **Function Signature:**\n    ```typescript\n    const deleteBoard = async (data: { user_id: string, board_id: string }) => {\n    ```\n    This function expects an object containing both a `user_id` and a `board_id`.\n\n*   **Input Validation:**\n    Before performing any database operations, the function validates the `board_id`:\n    ```typescript\n    if (!data.board_id) {\n        return { status: 400, message: \"Board id is required\" }\n    }\n    ```\n    If the `board_id` is missing, it immediately returns a 400 status with an error message.\n\n*   **Database Operation:**\n    If the `board_id` is present, the function executes a deletion on the `Board` model:\n    ```typescript\n    await Board.deleteOne({ _id: data.board_id, user_id: data.user_id })\n    ```\n    This ensures that the board is deleted only if it matches both the provided `_id` and belongs to the associated `user_id`.\n\n### 3. Response and Frontend State Update\nOnce the database operation completes:\n\n*   **Success:** The backend returns a 200 status with a confirmation message and the ID of the deleted board:\n    ```typescript\n    return {\n        status: 200,\n        message: \"Board deleted successfully\",\n        data: { _id: data.board_id }\n    }\n    ```\n*   **Frontend State Update:**\n    Following a successful response, the frontend updates its state using the `removeBoard` dispatcher. Based on the logic in `deleteContent (part 2)`, if the board is successfully deleted, the application often redirects the user:\n    ```typescript\n    navigator(\"/dashboard\", { replace: true })\n    ```\n    This ensures the interface no longer displays the deleted board and refreshes the dashboard view.\n\n*   **Error Handling:** If a network error or internal server error occurs, the frontend catches the exception and opens a modal:\n    ```typescript\n    dispatcher(setOpen({\n        open: true,\n        type: OpenFor.ERROR,\n        heading: \"Error\",\n        headingDescription: \"Network Error, Please try again later\",\n    }))\n    ```\n\nRelevant files:\n- deleteBoard.ts: Contains the backend `deleteBoard` function responsible for the actual deletion and `user_id` verification\n- [Frontend component (context of `deleteContent` part 2)]: Handles the `BOARD_DELETION` state and triggers the API call via `dispatcher(removeBoard...)`",
+      "evaluation": "```json\n{\n  \"correctness\": {\n    \"score\": 2,\n    \"reason\": \"The generated answer accurately describes the backend validation (checking for board_id) and deletion logic (matching user_id and _id) based on the code chunks. It correctly identifies that the frontend triggers the action by ID. However, it does not explicitly name the 'boardSlice' as the Redux slice used for state management, referring only to the 'removeBoard' dispatcher/action. Despite this minor omission in naming the specific slice file, the functional description of the flow (frontend dispatch -> backend validation/deletion) is correct and semantically equivalent to the ground truth's core assertions.\"\n  },\n  \"faithfulness\": {\n    \"score\": 2,\n    \"reason\": \"All claims are directly supported by the retrieved chunks. The backend function `deleteBoard` code in `board.services.ts` confirms the data structure `{ user_id: string, board_id: string }`, the validation `if (!data.board_id)`, and the `Board.deleteOne` call. The frontend chunk `deleteContent.tsx` confirms the `dispatcher(removeBoard(data.data._id))` call and the subsequent `navigator` redirect. The answer does not invent details not present in the chunks.\"\n  },\n  \"completeness\": {\n    \"score\": 2,\n    \"reason\": \"The answer covers the essential information requested: the data structure, backend validation, and frontend state update (via dispatcher and navigation). It addresses all parts of the user's question effectively.\"\n  }\n}\n```",
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 11,
+      "query": "Describe the full authentication flow for a WebSocket connection, detailing how the frontend store manages the user state and how the backend socket middleware validates the user's identity against the database.",
+      "ground_truth_answer": "The frontend `loginUser` thunk fetches user data from the backend and, upon success, updates the Redux `auth` slice to set `state.user` and `state.isAuth` to true. When a WebSocket connection is established, the `authSocketMiddleware` extracts the `access_token` from the `cookies` header, verifies it using `jwt.verify`, and checks if the `decoded.sub` exists in the database via `UserModel.findById`. If valid, it sets `socket.data.user_id` and allows the connection.",
+      "generated_answer": "Based on the retrieved context, I can describe the **backend socket authentication flow** in detail, but I must note that the retrieved context **does not include any frontend code** (e.g., Redux, Zustand, or other store logic that manages user state). I will clearly identify what is supported by the retrieved files and what is not.\n\n---\n\n## Backend WebSocket Authentication & Validation Flow\n\nThe repository uses **Socket.IO** with a multi-layered middleware pipeline to authenticate and validate user identity on WebSocket connections.\n\n### 1. Connection-Level Authentication: `authSocketMiddleware`\n\nDefined in `src/socket/AuthSocketMiddleware.ts` (lines 6–30), this middleware is applied to **every namespace** (`/board-chat`, `/list`, and the default online namespace) via `namespace.use(authSocketMiddleware)` or `io.use(authSocketMiddleware)`.\n\n```ts\nconst authSocketMiddleware = async (socket: Socket, next: Function) => {\n    const cookiesHeader = socket.handshake.headers.cookie\n    if (!cookiesHeader) return next(new Error(\"Unauthorized\"))\n    const cookies = cookie.parse(cookiesHeader);\n    const accessToken = cookies.access_token;\n    if (!accessToken) return next(new Error(\"Unauthorized\"))\n\n    try {\n        const decoded = jwt.verify(accessToken, env.jwt_secret)\n        if (decoded.sub) {\n            const doesUserExist = await UserModel.findById(decoded.sub, { _id: 1 });\n            if (doesUserExist) {\n                socket.data.user_id = decoded.sub\n                next()\n            } else {\n                return next(new Error(\"Unauthorized\"))\n            }\n        } else {\n            return next(new Error(\"Unauthorized\"))\n        }\n    } catch (error) {\n        return next(new Error(\"Unauthorized\"))\n    }\n}\n```\n\n**Step-by-step:**\n\n1. **Extract cookie from handshake headers:** `socket.handshake.headers.cookie` is parsed using `cookie.parse()`.\n2. **Verify JWT `access_token`:** The token is verified against `env.jwt_secret` via `jwt.verify()`. If invalid, the client receives an `\"Unauthorized\"` error and the connection is refused.\n3. **Database user existence check:** The decoded `sub` field (user ID) is looked up in `UserModel` (`src/models/UserModel.ts`). If the user does not exist, the connection is refused.\n4. **Store identity on socket:** If both checks pass, `socket.data.user_id = decoded.sub` is set. This makes the authenticated user ID available to downstream middleware and event handlers for the lifetime of the connection.\n\nThis same pattern is mirrored in the **REST auth middleware** (`authMiddleware` in `src/middleware/AuthMiddleware.ts`, lines 5–43), which performs identical logic but for HTTP requests: it reads `req.cookies.access_token`, verifies the JWT, checks `UserModel.findById()`, and sets `req.user = { id: decoded.sub }` on successful validation.\n\n### 2. Packet-Level Validation: `validationMiddleware` / `userValidationSocketMiddleware`\n\nAfter successful authentication, each socket receives **per-packet validation**:\n\n- **Online namespace** (`src/socket/OthersOnline.ts`, line 10–31):\n  ```ts\n  socket.use((packet, next) => {\n      validationMiddleware(socket, packet, next);\n  })\n  ```\n\n- **Board chat namespace** (`src/socket/BoardChatSocket.ts`, line 9–34) and **List namespace** (`src/socket/ListSocket.ts`, line 7–24) use the same pattern:\n  ```ts\n  socket.use((packet, next) => {\n      validationMiddleware(socket, packet, next)\n  })\n  ```\n\n- In `src/socket/UserOnline.ts`, a specific implementation `userValidationSocketMiddleware` is defined (lines 2–7):\n  ```ts\n  const userValidationSocketMiddleware = (socket: Socket, packet: Event, next: Function) => {\n      if (!socket.data.user_id) {\n          return next(new Error(\"Unauthorized\"))\n      }\n      next();\n  }\n  ```\n  This is a guard that ensures `socket.data.user_id` was set by `authSocketMiddleware` before any event is processed.\n\nThe exact implementation of `validationMiddleware` (imported from a shared location) is not included in the retrieved chunks, but its role is consistent: it validates incoming packet data for each event before the handler executes.\n\n### 3. Namespace-Specific Event Handling & Cleanup\n\nEach namespace registers event handlers and performs cleanup on disconnect:\n\n| Namespace | Auth Middleware | Packet Middleware | Key Events | Disconnect Cleanup |\n|---|---|---|---|",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly describes the backend authentication flow using the `authSocketMiddleware`, including JWT verification and database checks. However, it fails to describe the frontend part of the question (Redux `auth` slice management), stating that the context does not include it. While the omission is technically due to missing context, the answer is incomplete relative to the user's specific request for the 'full authentication flow' including frontend state management."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims regarding the backend code are supported by the retrieved chunks. The description of `authSocketMiddleware` matches `backend/src/sockets/middlewares/auth.socket.middleware.ts`. The description of the namespace setup and `userValidationSocketMiddleware` matches the other retrieved files. The answer correctly identifies that frontend code is not in the retrieved chunks, thus avoiding hallucinated details."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer covers the backend validation in detail but misses the frontend state management aspect of the question entirely. The ground truth explicitly mentions the `loginUser` thunk and Redux `auth` slice updates. Although the retrieved chunks do not contain this information, the answer fails to provide the full picture requested in the prompt, limiting its completeness."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 2,
+        "completeness": 1
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 12,
+      "query": "If a user logs out on the frontend, what changes occur in the Redux store, and how does the backend `authMiddleware` respond to subsequent requests made by the client?",
+      "ground_truth_answer": "When `logOut` is dispatched, the Redux `auth` slice sets `state.user` to null and `state.isAuth` to false. Subsequently, any request hitting the backend `authMiddleware` will fail because `req.cookies` will either be missing or the `access_token` will be invalid/missing, causing the middleware to return a 401 Unauthorized status with the message 'Unauthorized'.",
+      "generated_answer": "## Redux Store Changes on Logout\n\nWhen the user logs out, the Redux `auth` slice (retrieved from the global scope variables) applies the `logOut` reducer:\n\n```js\nlogOut(state) {\n    state.user = null;\n    state.isAuth = false;\n},\n```\n\nSo after a logout:\n- `state.auth.user` is reset to `null`.\n- `state.auth.isAuth` is set to `false`.\n\nThe `authSlice` also defines `extraReducers` for the `loginUser` thunk (`pending`, `fulfilled`, `rejected`) that manage `loadingAuth`, `error`, and re-setting `isAuth`/`user` on re-login. The `logOut` action is exposed via `const { logOut } = authSlice.actions;`.\n\nOne related helper, `requireAuth` (lines 13–25), reads the store and, if `state.auth.isAuth` is not true, dispatches `loginUser()`; if still unauthenticated it issues `redirect(\"/auth/login\")`. So any protected route that calls `requireAuth` after a logout will attempt silent re-auth, and redirect to `/auth/login` if that fails.\n\nI couldn't find in the retrieved chunks the exact code of the frontend `logoutService`/route that dispatches `logOut`, only the reducer and the socket/middlewares.\n\n## Backend `authMiddleware` After Logout\n\nThe backend `logout` handler (lines 67–88) clears the `refresh_token` and `access_token` HTTP cookies on a successful `logoutService(user_id)` call:\n\n```js\nres.clearCookie('refresh_token', { httpOnly: true, secure: false });\nres.clearCookie('access_token',  { httpOnly: true, secure: false });\n```\n\nThe service `logout` (lines 93–111) also removes the stored refresh token: `RefereshTokenModel.deleteOne({ user_id: user_id })`.\n\nAfter the cookies are cleared, the front-end may still send the previously issued `access_token` cookie if it was not reloaded, but the server-side validation in `authMiddleware` (lines 5–43) does this:\n\n```js\nconst access_token = COOKIES.access_token\nif (!access_token) {\n    return res.status(401).json({ message: \"Unauthorized\" });\n}\n...\nconst decoded = jwt.verify(access_token, env.jwt_secret)\nif (decoded.sub) {\n    const doesUserExist = await UserModel.findById(decoded.sub, { _id: 1 });\n    if (doesUserExist) { req.user = { id: decoded.sub }; next(); }\n    else return res.status(401).json({ message: \"Unauthorized\" });\n} else return res.status(401).json({ message: \"Unauthorized\" })\n```\n\nSo for subsequent requests:\n\n1. **Missing `access_token` cookie** → immediate `401 Unauthorized` (since `logout` cleared the cookie).\n2. **Token present but stale/invalid** → `jwt.verify` throws or `decoded.sub` is absent → `401 Unauthorized`.\n3. **Token still cryptographically valid** → the middleware re-checks `UserModel.findById(decoded.sub)`. It does **not** check the `RefereshTokenModel`, so the logout does not directly block a still-valid JWT. If the user document still exists in MongoDB, `req.user = { id: decoded.sub }` is set and `next()` is called — i.e., the request is **accepted** despite the logout. The backend will only return `401` if the token can no longer be verified or the user record is gone.\n\n### Summary\n| Step | What changes |\n|---|---|\n| Frontend `logOut` reducer | `auth.user = null`, `auth.isAuth = false` |\n| `requireAuth` (if called) | Tries `loginUser()`; redirects to `/auth/login` on failure |\n| Backend `logout` handler | Clears `access_token` and `refresh_token` cookies; service deletes the stored refresh token |\n| Next request through `authMiddleware` | `401` if no cookie, invalid/expired JWT, or user no longer exists; otherwise the request passes because middleware only verifies the JWT signature and user existence, not a logout flag |\n\nNote: The frontend clears state immediately, but the backend has no server-side \"invalidated token\" mechanism aside from deleting the refresh token; a still-valid `access_token` cookie would continue to pass `authMiddleware` until it expires or the user is removed from `UserModel`.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly identifies the Redux state changes (`user` to null, `isAuth` to false) and accurately describes the backend `authMiddleware` behavior. It correctly notes that if the cookie is cleared (as per the backend `logout` controller), the middleware returns 401. It also provides a technically accurate nuance that if the cookie were somehow still present and valid, the middleware would pass it through, which is a correct analysis of the provided code, but the primary flow described (cookie cleared -> 401) matches the ground truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are supported by the retrieved chunks. The Redux slice code is explicitly present in chunk 5. The `authMiddleware` code is in chunk 2. The backend `logout` controller clearing cookies is in chunk 1. The `requireAuth` logic is in chunk 3. The service deleting the refresh token is in chunk 7. No hallucinations or unsupported details were found."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential points from the ground truth: Redux state changes and the resulting 401 response from the middleware due to missing/invalid tokens. It also adds relevant context about the `requireAuth` guard and the specific backend logout mechanism (cookie clearing) found in the code, which enhances the completeness of the explanation without contradicting the ground truth."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 13,
+      "query": "How does the frontend application handle a scenario where a user attempts to access the '/dashboard' route while not authenticated, and what specific backend middleware logic validates this access on the server side?",
+      "ground_truth_answer": "On the frontend, accessing '/dashboard' triggers the `requireAuth` loader, which dispatches `loginUser()` if `state.auth.isAuth` is false and redirects to '/auth/login' if authentication still fails. On the backend, the `authMiddleware` validates this by checking for `req.cookies.access_token`, verifying the JWT secret, and ensuring the `decoded.sub` exists in the database via `UserModel.findById` before calling `next()`.",
+      "generated_answer": "The frontend application handles access to the `/dashboard` route when a user is not authenticated using a loader middleware function named `requireAuth`.\n\n### Frontend Handling (`requireAuth`)\n\nThis function is likely used as a loader for the `/dashboard` route. It interacts with a Redux store to manage authentication state.\n\n1.  It retrieves the current state: `const state = store.getState();`.\n2.  If the user is **not** authenticated (`!state.auth.isAuth`), it dispatches `loginUser()`:\n    ```javascript\n    if (!state.auth.isAuth) {\n        await store.dispatch(loginUser());\n    }\n    ```\n3.  After attempting the login (which presumably silently authenticates the user via a subrequest or cookie), it checks the state again:\n    ```javascript\n    if (!store.getState().auth.isAuth) {\n        return redirect(\"/auth/login\");\n    }\n    ```\n4.  If the user is still not authenticated, it redirects to `/auth/login`. Otherwise, it returns `null`, allowing the route to render.\n\nThis can be seen in the `requireAuth` function:\n(lines 13–25)\n```javascript\nconst requireAuth = async () => {\n    const state = store.getState();\n    // console.log('Store State : ', state.auth);\n    if (!state.auth.isAuth) {\n        await store.dispatch(loginUser());\n    }\n    // console.log('Store State : ', state.auth);\n    if (!store.getState().auth.isAuth) {\n        return redirect(\"/auth/login\");\n    }\n\n    return null;\n};\n```\n\n(Note: There is also a `redirectIfAuth` function which performs the opposite check—redirecting to `/dashboard` if the user *is* already authenticated.)\n\n### Server-Side Validation\n\nThe context provided does **not** show specific backend REST controller middleware or route protection logic (e.g., Express middleware protecting `/api/users/...` or specific dashboard data endpoints).\n\nHowever, it does show **WebSocket middleware** that validates user access for real-time communication on the server side. Two specific namespaces, `/board` and `/board-chat`, use an authentication middleware:\n\n1.  **`boardNameSpace`**:\n    ```javascript\n    const boardNameSpace = (io: Server) => {\n        const namespace = io.of('/board');\n        namespace.use(authSocketMiddleware)\n        // ...\n    }\n    ```\n    (lines 5–30)\n\n2.  **`boardChatNamespace`**:\n    ```javascript\n    const boardChatNamespace = (io: Server) => {\n        const namespace = io.of('/board-chat');\n        namespace.use(authSocketMiddleware)\n        // ...\n    }\n    ```\n    (lines 9–34)\n\nThese namespaces apply `authSocketMiddleware` to all incoming socket connections. Inside the socket connection handler, they further apply a `validationMiddleware` to each packet. Additionally, a specific validator `userValidationSocketMiddleware` is shown which checks for a `user_id` on the socket data:\n\n```javascript\nconst userValidationSocketMiddleware = (socket: Socket, packet: Event, next: Function) => {\n    if (!socket.data.user_id) {\n        return next(new Error(\"Unauthorized\"))\n    }\n    next();\n}\n```\n(lines 2–7)\n\nI couldn't find relevant information in the available repository context regarding specific HTTP backend middleware logic (such as Express `express.Router` middleware) that validates access to REST API endpoints serving the `/dashboard` rendered contents or specific dashboard data, only the WebSocket authentication middleware.",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The frontend explanation is correct and matches the ground truth (requireAuth loader, dispatching loginUser, redirecting if unauthenticated). However, the backend explanation is incorrect relative to the ground truth. The ground truth specifies an HTTP `authMiddleware` checking cookies and JWT, whereas the generated answer only discusses WebSocket middleware (`authSocketMiddleware`/`userValidationSocketMiddleware`) and admits it cannot find HTTP middleware. This fails to describe the specific backend logic referenced in the truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims regarding the frontend `requireAuth` function are directly supported by the code chunk from `frontend/src/router/router.ts`. The claims about the backend WebSocket middleware (`boardNameSpace`, `boardChatNamespace`, `userValidationSocketMiddleware`) are also directly supported by their respective retrieved chunks. The answer correctly notes the absence of HTTP middleware logic in the provided context, which is faithful to the retrieved data."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer fully covers the frontend aspect of the question. However, it fails to cover the specific backend middleware logic described in the ground truth (HTTP auth, cookie check, JWT validation, DB lookup). It only provides information on WebSocket auth, which is adjacent but distinct from the requested 'specific backend middleware logic' for route access validation as defined by the ground truth."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 2,
+        "completeness": 1
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 14,
+      "query": "What happens if the frontend sends a 'name' field that is shorter than 3 characters, and how does the backend middleware handle this error?",
+      "ground_truth_answer": "If the frontend sends a 'name' shorter than 3 characters, the 'updateUserValidation' schema will fail validation. The 'updateUserValidationMiddleware' detects this via 'safeParse', checks 'result.success', and returns a '400' status with a JSON object containing the message \"Validation failed\" and the specific error details.",
+      "generated_answer": "Based on the provided context, there is **no schema or middleware** that validates a `name` field against a minimum length of 3 characters. Therefore, I cannot determine what happens if the frontend sends a `name` field shorter than 3 characters, as this specific validation rule does not exist in the retrieved code.\n\nHere is the relevant information from the context regarding fields similar to `name`:\n\n1.  The `userSchema` defines a `name` field, but only requires that it be a non-empty string (minimum 1 character):\n    ```javascript\n    const userSchema = z.object({\n        name: z.string().min(1, \"Name is required\"),\n        email: z.email(\"Invalid email address\"),\n        password: z.string().min(6, \"Password must be at least 6 characters\"),\n    });\n    ```\n    If this schema were used, a `name` with 1 or 2 characters would pass validation because `min(1)` is satisfied. A `name` of length 0 would fail with the message **\"Name is required\"**.\n\n2.  Other fields have minimum length constraints different from 3:\n    *   `boardCreator` requires `title` and `description` to be at least **3 characters** (`\"Title must be at least 3 characters long\"`), but these are not called `name`.\n    *   `listValidator` requires `title` to be at least **1 character** and at most 15 characters.\n\n3.  The middleware functions (e.g., `updateUserValidationMiddleware` or `deleteUserValidationMiddleware`) handle validation errors by returning a `400` status with a JSON body containing `message` and `errors` if `safeParse` fails. However, without a specific validation rule for `name < 3`, this error handling logic would not be triggered by a short `name` field (unless it was empty, depending on which schema is used).\n\nIf you intended to ask about `title` or `description` in the `boardCreator` schema, those fields **would** be rejected if shorter than 3 characters, resulting in a `400` response if processed by a validation middleware similar to `updateUserValidationMiddleware`. But for the `name` field specifically, no such restriction is shown.",
+      "evaluation": "{\n  \"correctness\": {\n    \"score\": 0,\n    \"reason\": \"The generated answer falsely claims that no schema validates a `name` field against a minimum length of 3 characters. The ground truth states that the `updateUserValidation` schema fails if the name is shorter than 3 characters, and the middleware returns a 400 error. The generated answer contradicts this by stating such a rule does not exist in the context and would not be triggered.\"\n  },\n  \"faithfulness\": {\n    \"score\": 1,\n    \"reason\": \"The answer correctly quotes the `userSchema` from the retrieved chunks (min 1 character). However, it fails to notice that while the specific `updateUserValidation` definition isn't explicitly quoted with its schema body in the chunks, the middleware `updateUserValidationMiddleware` *is* present. The claim that 'no schema... validates a name field against a minimum length of 3 characters' is an over-generalization based on the absence of the specific schema definition in the text, leading to a negative conclusion that contradicts the likely intent of the question which presupposes the existence of the validation. It is partially faithful to the visible code (userSchema) but unfaithful in its global conclusion derived from the incomplete set of chunks.\"\n  },\n  \"completeness\": {\n    \"score\": 0,\n    \"reason\": \"The answer fails to address the core question. The ground truth expects an explanation of the 400 error response with validation error details. The generated answer states that the error handling would not be triggered for a short name (based on the 1-char limit it found), thereby missing the essential information about how a 3-character validation failure is handled.\"\n}",
+      "scores": {
+        "correctness": 0,
+        "faithfulness": 1,
+        "completeness": 0
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 15,
+      "query": "Explain the role of the `boardUsersMap` in the list management handlers and how the `authSocketMiddleware` ensures that only authenticated users can access the list namespace where this map is checked.",
+      "ground_truth_answer": "The `boardUsersMap` is a critical data structure used in `handelListCreate`, `handelListDelete`, and `handelListUpdate` to verify that a user is authorized to perform actions on a specific board. The `authSocketMiddleware` ensures that only authenticated users (those with a valid JWT and existing user record) have their `user_id` attached to `socket.data`. Without this middleware, the handlers would not have the necessary `user_id` to check against `boardUsersMap`, effectively preventing unauthorized access to the list namespace's functionality.",
+      "generated_answer": "Based on the provided code, here is an explanation of the role of `boardUsersMap` and how `authSocketMiddleware` secures the board/list operations.\n\n### 1. Role of `boardUsersMap` in List Management Handlers\n\n`boardUsersMap` acts as an in-memory, real-time registry of which users are currently active on which boards. It functions as a secondary authorization and presence check within the list management handlers (`handelListCreate`, `handelListUpdate`, `handelListDelete`).\n\n**Data Structure:**\nWhile the initialization of `boardUsersMap` is not shown in the snippets, its usage in `handelBoardJoin` and `handelBoardLeave` reveals its structure. It is a `Map` where:\n*   **Key:** `board_id` (String)\n*   **Value:** A `Map` where:\n    *   **Key:** `user_id` (String)\n    *   **Value:** A number representing the count of active sockets for that user on that board (used to handle multiple tabs/windows).\n\n**Function in List Handlers:**\nIn the list creation, update, and delete functions, the code performs a mandatory check:\n\n```typescript\nif (!boardUsersMap.has(board_id)) {\n    socket.emit(\"error\", { message: \"User is not connected to any board\" });\n    return;\n}\n```\n\n**Why this is important:**\n1.  **Presence Verification:** Although `socket.data.board_id` might be set (as seen in `handelBoardJoin`), the list handlers ensure the board is still active in the central map. If a board is deactivated or all users leave, `handelBoardLeave` (lines 51-53) deletes the board from the map:\n    ```typescript\n    if (users.size === 0) {\n        boardUsersMap.delete(boardId);\n    }\n    ```\n2.  **Graceful Degradation:** This check prevents list actions from being processed if the board connection has logically dropped (e.g., the user left the board via `leave-board` but the socket remains connected, and `socket.data.board_id` was deleted).\n\n### 2. Role of `authSocketMiddleware`\n\nThe `authSocketMiddleware` acts as the primary entry point for security. It is registered in the `boardNameSpace` function:\n\n```typescript\nnamespace.use(authSocketMiddleware)\n```\n\n**Execution Flow:**\n1.  **Connection Interception:** Socket.IO uses \"namespaces\" to group handlers. When a client connects to the `io.of('/board')` namespace, the middleware runs *before* the `connection` event handler executes.\n2.  **Authentication Logic:** Although the implementation of `authSocketMiddleware` is not in the chunks, its position implies it verifies the user's credentials (likely by decoding a token from the `handshake` data).\n3.  **Context Injection:** If the user is authenticated, the middleware allows the connection to proceed. It likely sets the `socket.data.user_id`.\n    *   *Evidence:* The list handlers check `socket.data.user_id` (e.g., `handelListDelete` lines 38-43) with the error message \"User ID is required\". This strongly suggests the middleware is responsible for populating this data.\n    *   *Counter-evidence:* `handelBoardChatCommunication` (lines 25-26) demonstrates that `socket.data.user_id` is sometimes accessed directly and used for database queries (`UserModel.findById`), confirming it's a core part of the socket's trusted context established at connection time.\n4.  **Access Control to `boardUsersMap`:**\n    *   Because `authSocketMiddleware` runs first, it prevents unauthenticated sockets from ever reaching the `socket.on` handlers (like `connect-to-board` or `list-create`).\n    *   Therefore, the `boardUsersMap` checks inside the list handlers do not need to verify authentication. The authentication has already passed; the map only verifies that the user has a valid *active connection* to that specific board.\n\n### Summary of Interaction\n\n1.  **Client Connects:** `authSocketMiddleware` validates identity and sets `socket.data.user_id`.\n2.  **Client Joins Board:** `handelBoardJoin` stores the user in `boardUsersMap` and sets `socket.data.board_id`.\n3.  **Client Creates List:** `handelListCreate` checks `boardUsersMap`.\n    *   If the user is in the map, the operation is forwarded to the database layer (implied) and broadcast.\n    *   If the user is not in the map (e.g., they left the board), the operation is rejected with an error.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly identifies the role of `boardUsersMap` as a presence/authorization check in the list handlers and correctly explains how `authSocketMiddleware` ensures only authenticated users (with valid `user_id`) can access the namespace. The explanation aligns with the ground truth regarding the dependency of the handlers on the middleware to populate `socket.data.user_id`."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are supported by the retrieved code chunks. The structure of `boardUsersMap` (Map of Maps) is derived from `handelBoardJoin` and `handelBoardLeave`. The usage in list handlers (`handelListCreate`, etc.) is directly visible. The application of `authSocketMiddleware` in `boardNameSpace` is shown in the chunk. The inference that the middleware sets `socket.data.user_id` is strongly supported by the fact that handlers rely on `socket.data.user_id` being present after the connection event, and the middleware is the only code executed before that point in the provided chunks."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential points: the specific handlers that use the map, the purpose of the map (verifying user presence/authorization on a board), and the role of the middleware in establishing the authenticated context (`socket.data.user_id`) required by those handlers."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8
+    },
+    {
+      "dataset_index": 16,
+      "query": "Describe the sequence of operations when a client sends a 'create-list' event, including how the namespace is initialized, how authentication is handled, and what specific data validations occur before emitting the 'list-created' event.",
+      "ground_truth_answer": "When a client connects, the `initSocket` function registers the `listNamespace` with the server. Upon connection, the `listNamespace` applies `authSocketMiddleware` to verify the user's identity and attach `user_id` to `socket.data`. If authenticated, the `listNamespace` listens for the 'create-list' event and calls `handelListCreate`. This handler first checks if `board_id` and `user_id` exist in `socket.data`, then verifies the user is connected to the board via `boardUsersMap`. If all checks pass, it joins the socket to the board namespace and emits the 'list-created' event with the provided data.",
+      "generated_answer": "## Sequence of Operations for a `create-list` Event\n\n### 1. Namespace Initialization\nThe `listNamespace` function (lines 7–24) sets up the namespace:\n```typescript\nconst namespace = io.of(\"/list\");\nnamespace.use(authSocketMiddleware)\nnamespace.on(\"connection\", (socket) => {\n    socket.use((packet, next) => {\n        validationMiddleware(socket, packet, next)\n    })\n    socket.on(\"create-list\", (data) => {\n        handelListCreate(namespace, socket, data);\n    });\n    // ... other event handlers\n});\n```\n- Creates a socket.io namespace at `/list`.\n- Registers `authSocketMiddleware` **at the namespace level** (runs on every connection).\n- Registers a `socket.use` **per-socket middleware** that calls `validationMiddleware` on every packet before the event handler executes.\n\n### 2. Authentication Handling\n\n**a) Namespace-level auth — `authSocketMiddleware`:**\nThe exact implementation of `authSocketMiddleware` was not included in the retrieved context, but it is applied via `namespace.use(...)` so it runs on every new connection to the `/list` namespace before the connection is accepted. If it returns an error, the connection is rejected and none of the event handlers would be reachable.\n\n**b) Per-packet validation middleware:**\nEach packet is passed through `validationMiddleware(socket, packet, next)` (referenced in `listNamespace`, lines 12–14). The only validation middleware whose source is available in the retrieved context is `userValidationSocketMiddleware` (lines 2–7):\n```typescript\nconst userValidationSocketMiddleware = (socket: Socket, packet: Event, next: Function) => {\n    if (!socket.data.user_id) {\n        return next(new Error(\"Unauthorized\"))\n    }\n    next();\n}\n```\nThis suggests the `validationMiddleware` used in the list namespace checks that `socket.data.user_id` is set and calls `next(new Error(\"Unauthorized\"))` if it is missing.\n\n### 3. Data Validations Before Emitting `list-created`\n\nWhen the `create-list` event fires, `handelListCreate` (lines 5–29) performs the following sequential checks:\n\n1. **`board_id` check:**\n   ```typescript\n   const board_id = socket.data.board_id;\n   if (!board_id) {\n       console.log(\"User is not connected to any board\");\n       socket.emit(\"error\", { message: \"User is not connected to any board\" });\n       return;\n   }\n   ```\n2. **Join the board room:**\n   ```typescript\n   socket.join(board_id);\n   ```\n3. **`user_id` check:**\n   ```typescript\n   const user_id = socket.data.user_id;\n   if (!user_id) {\n       console.log(\"User ID is required\");\n       socket.emit(\"error\", { message: \"User ID is required\" });\n       return;\n   }\n   ```\n4. **Board membership check via `boardUsersMap`:**\n   ```typescript\n   if (!boardUsersMap.has(board_id)) {\n       console.log(\"User is not connected to any board\");\n       socket.emit(\"error\", { message: \"User is not connected to any board\" });\n       return;\n   }\n   ```\n   *(Note: `boardUsersMap` is referenced but its type or initialization is not shown in the retrieved context.)*\n\n### 4. Broadcasting the `list-created` Event\n\nOnly after all validations pass does the handler broadcast to the board room:\n```typescript\nnameSpace.to(board_id).emit(\"list-created\", { list: data });\n```\n\n### Summary of the Full Flow\n\n1. Client connects to `/list` → `authSocketMiddleware` validates the connection.\n2. On every packet (including `create-list`) → `validationMiddleware` (likely `userValidationSocketMiddleware`) ensures `socket.data.user_id` exists.\n3. `handelListCreate` executes:\n   - Validates `socket.data.board_id` is present.\n   - Joins the socket to the board room.\n   - Validates `socket.data.user_id` is present.\n   - Validates the board exists in `boardUsersMap`.\n   - Emits `list-created` to all sockets in the `board_id` room.\n\n> **Caveat:** The exact source of `authSocketMiddleware`, `validationMiddleware`, and the initialization/data structure of `boardUsersMap` were not included in the retrieved context, so their internal implementation beyond what is inferred above cannot be confirmed from the available code.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer correctly describes the sequence of operations for a 'create-list' event, matching the ground‑truth explanation in terms of namespace setup, authentication handling, data validation steps, and final event emission."
+        },
+        "faithfulness": {
+          "score": 1,
+          "reason": "Most implementation‑specific claims are supported by the retrieved code chunks (namespace initialization, per‑packet validation, board_id/user_id checks, boardUsersMap check, and emission). However, the claim that `authSocketMiddleware` verifies identity and attaches `user_id` is not directly supported by any provided code snippet for that middleware."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential information required by the question, including namespace initialization, authentication, data validations, board membership checks, room joining, and event emission, with no omissions of critical steps."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 1,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 17,
+      "query": "What is the complete authentication flow for a socket connection, and how does the list namespace specifically utilize this middleware before processing create, delete, or update events?",
+      "ground_truth_answer": "The authentication flow begins in the `authSocketMiddleware` function, which extracts an `access_token` from the `cookies` header, verifies it using `jwt.verify`, and checks if the decoded `sub` corresponds to an existing user in the database via `UserModel.findById`. If valid, it attaches the `user_id` to `socket.data` and calls `next()`. The `listNamespace` explicitly applies this middleware via `namespace.use(authSocketMiddleware)` before handling any events. Finally, the `initSocket` function registers the `listNamespace` alongside other namespaces, ensuring this authentication step is part of the overall socket initialization.",
+      "generated_answer": "# Socket Authentication Flow & List Namespace Middleware Usage\n\n## 1. Complete Authentication Flow\n\nThe codebase uses a **two-layer middleware stack** that applies to **every** socket namespace (`/`, `/list`, `/board`, `/board-chat`). The flow, combined from the namespace definitions and the visible middleware, is:\n\n```\nClient connects\n  └─> CONNECTION-LEVEL: authSocketMiddleware(socket, next)\n          │  (not shown in context, but referenced in every namespace via `.use()`)\n          │  Presumably validates auth token / sets `socket.data.user_id`\n          │  If auth fails → call next(err) → handshake rejected\n          ▼\n  Connection accepted\n  └─> HANDLER-LEVEL: validationMiddleware(socket, packet, next)\n          │  Invoked via socket.use(...) on every incoming packet/event\n          │  Guards against operations issued before the socket has joined a context\n          ▼\n  Event handler runs (create-list, get-online-presence, connect-to-board, etc.)\n```\n\n### Evidence at the connection level\n\nEvery namespace registers `authSocketMiddleware` at connect time. From `onlineNameSpace` (lines 10–31):\n\n```ts\nconst onlineNameSpace = (io: Server) => {\n    io.use(authSocketMiddleware)\n    io.on('connection', (socket) => {\n        socket.use((packet, next) => {\n            validationMiddleware(socket, packet, next);\n        })\n        countOnlinePresence(socket);\n        ...\n```\n\nThe same two-layer pattern appears in `listNamespace` (line 7), `boardNameSpace` (line 9), and `boardChatNamespace` (line 9):\n\n```ts\nconst namespace = io.of(\"/list\");\nnamespace.use(authSocketMiddleware)\nnamespace.on(\"connection\", (socket) => {\n    socket.use((packet, next) => {\n        validationMiddleware(socket, packet, next)\n    })\n    ...\n```\n\n### Authentication contract (observed)\n\nAlthough `authSocketMiddleware` and `validationMiddleware` themselves are not included in the retrieved context, their **contract** is clear from `userValidationSocketMiddleware` (lines 2–7), which is the only explicitly-shown auth middleware:\n\n```ts\nconst userValidationSocketMiddleware = (socket: Socket, packet: Event, next: Function) => {\n    if (!socket.data.user_id) {\n        return next(new Error(\"Unauthorized\"))\n    }\n    next();\n}\n```\n\nSo authentication is represented by the presence of `socket.data.user_id`:\n\n- **Success** → `next()` is called; handler proceeds.\n- **Failure** → `next(new Error(\"Unauthorized\"))` is called; the packet/event is rejected with an `Unauthorized` error.\n- Every handler also re-checks `socket.data.user_id` and `socket.data.board_id` defensively, and cleans them up on `disconnect` (e.g. `boardNameSpace` lines 27–29: `delete socket.data.user_id; delete socket.data.board_id;`).\n\n> Note: `validationMiddleware` is *similar* but not identical to `userValidationSocketMiddleware` in the visible code — both follow the same pattern, but `validationMiddleware`'s body is not in the retrieved chunks.\n\n## 2. How the List Namespace Uses This Flow\n\n`listNamespace` (lines 7–24) wires the middleware exactly the same way as every other namespace:\n\n```ts\nconst listNamespace = (io: Server) => {\n    const namespace = io.of(\"/list\");\n    namespace.use(authSocketMiddleware)            // (1) connection-level auth\n    namespace.on(\"connection\", (socket) => {\n        socket.use((packet, next) => {             // (2) per-packet validation\n            validationMiddleware(socket, packet, next)\n        })\n        socket.on(\"create-list\",    (data) => { handelListCreate(namespace, socket, data); });\n        socket.on(\"delete-list\",    (data) => { handelListDelete(namespace, socket, data); });\n        socket.on(\"list-update\",    (data) => { handelListUpdate(namespace, socket, data); });\n    });\n}\n```\n\nSo before **any** of `create-list`, `delete-list`, or `list-update` can be processed:\n\n1. `authSocketMiddleware` must pass at the `/list` connect step → `socket.data.user_id` is established.\n2. `validationMiddleware` must pass for the specific packet (the `create-list`/`delete-list`/`list-update` event) before the handler fires.\n\nThen the **",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly states that authSocketMiddleware is applied at connection time and that the list namespace uses this middleware before handling events. However, it omits the specific steps of extracting the access_token from cookies, verifying the JWT, and querying the database to validate the user, which are essential parts of the ground‑truth authentication flow."
+        },
+        "faithfulness": {
+          "score": 0,
+          "reason": "The claim that authSocketMiddleware extracts the token, verifies it, and attaches user_id is not supported by any of the retrieved code chunks. While namespace.use(authSocketMiddleware) is shown in the list namespace chunk, the internal implementation details of authSocketMiddleware are absent, making the description not faithful to the evidence."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer covers that the list namespace applies the auth middleware before events, but it does not cover the complete authentication process (token extraction, verification, DB lookup) described in the ground‑truth. Thus it is partially complete."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 0,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 18,
+      "query": "What are the specific validation rules for creating a new task, and how does the backend ensure the user has permission to create a task in a specific board and list?",
+      "ground_truth_answer": "The `createTask` function requires `user_id`, `title`, `deadline`, `board_id`, `status`, and `list_id` to be present. It validates that the specified `board_id` belongs to the requesting `user_id` and that the specified `list_id` belongs to that same `board_id`. The `getTasks` function enforces similar logic, checking if the user ID matches the board's user ID or if the board visibility is 'Public' before allowing access.",
+      "generated_answer": "## Task Creation: Validation Rules and Permission Checks\n\nBased on the retrieved code, here's how task creation is validated and how permissions are enforced.\n\n---\n\n### 1. Validation Rules (Zod Schema)\n\nAll validation rules for a new task are defined in the `taskCreateValidation` Zod object:\n\n```js\nconst taskCreateValidation = z.object({\n    title: z.string().min(3, \"Title must be at least 3 characters long\").max(100, \"Title must be at most 100 characters long\"),\n    description: z.string().max(1000, \"Description must be at most 1000 characters long\").optional(),\n    deadline: z.iso.datetime(),\n    status: z.enum([\"Todo\", \"In Progress\", \"Completed\"]),\n    board_id: z.string(),\n    list_id: z.string()\n})\n```\n\n| Field | Rule | Error Message |\n|---|---|---|\n| `title` | Required string, **min 3**, **max 100** chars | \"Title must be at least 3 characters long\" / \"Title must be at most 100 characters long\" |\n| `description` | **Optional** string, **max 1000** chars | \"Description must be at most 1000 characters long\" |\n| `deadline` | Must be a **valid ISO datetime string** (`z.iso.datetime()`) | (Zod default ISO datetime error) |\n| `status` | Must be one of `\"Todo\"`, `\"In Progress\"`, `\"Completed\"` | (Zod default enum error) |\n| `board_id` | Required string | (Zod default required error) |\n| `list_id` | Required string | (Zod default required error) |\n\n#### How validation is applied in the request pipeline\n\nA middleware called `validateTaskCreate` runs the Zod parse against `req.body` and replaces `req.body` with the validated/parsed data before the controller runs:\n\n```js\nconst validateTaskCreate = (req: Request, res: Response, next: NextFunction) => {\n    const parser = taskCreateValidation.safeParse(req.body);\n    if (!parser.success) {\n        return res.status(400).json({\n            message: parser.error.message,\n            error: parser.error.message\n        })\n    }\n    req.body = parser.data;   // sanitized/validated body is propagated forward\n    next();\n}\n```\n\nIf any rule is violated, the request is short-circuited with a **400 Bad Request** and the Zod error message. Otherwise, the parsed (and coerced) data is assigned to `req.body` and passed to the next handler (`createTask` controller).\n\nThe inferred type `TaskCreateValidation` is `z.infer<typeof taskCreateValidation>`, used for type safety.\n\n---\n\n### 2. Permission / Ownership Enforcement in the Service Layer\n\nAfter validation, the `createTask` controller (HTTP layer) extracts `req.user?.id` and delegates to `createTaskService`:\n\n```js\nconst createTask = async (req: Request, res: Response) => {\n    const user_id = req.user?.id\n    const { title, description, deadline, board_id, status, list_id } = req.body\n    const result = await createTaskService({\n        user_id: user_id,\n        title, description, deadline, board_id, status, list_id\n    })\n    if (result.status === 200) {\n        return res.status(result.status).json({ message: result.message, data: result.data })\n    }\n    return res.status(result.status).json({ message: result.message })\n}\n```\n\nThe **service function** (`createTask` in the service layer) performs two nested ownership checks before creating the `Task` document:\n\n#### a. Board ownership check\n\n```js\nconst board = await Board.findOne({\n    user_id: data.user_id,\n    _id: data.board_id\n})\nif (!board) {\n    return { status: 404, message: \"Board not found\" }\n}\n```\n\nThe query matches on **both** `user_id` and the requested `board_id`. So if the board exists but is owned by a different user, this `findOne` returns no document and the service responds with **404 \"Board not found\"**. This effectively denies permission without leaking that the board exists under another user.\n\n#### b. List-membership check (list must belong to the validated board)\n\n```js\nconst list = await List.findOne({\n",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer accurately describes the validation rules (Zod schema) and the permission checks in the service layer, matching the ground-truth explanation that a task requires user_id, title, deadline, board_id, status, list_id and that board_id must belong to the user and list_id to that board."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are directly supported by the retrieved code chunks: the Zod schema, validateTaskCreate middleware, Board.findOne with user_id & board_id, and List.findOne with list_id & board_id are present in the evidence."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential information asked: the specific validation rules, the extraction of user_id, and the two ownership checks (board and list) that enforce permission, matching the ground-truth."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 19,
+      "query": "When a list creation or update succeeds, how does the frontend dispatch the updated state, and what specific fields are populated from the server response?",
+      "ground_truth_answer": "Upon success, the frontend dispatches either 'addList' (for creation) or 'updateList' (for updates). Both actions populate the state with 'title', '_id', 'position', 'board_id', 'updated_at', and 'created_at' fields extracted directly from 'responseData.data'.",
+      "generated_answer": "I couldn't find relevant information in the available repository context to answer that. The retrieved context is empty, so I have no code or documentation to base an explanation on regarding list creation/update handlers, state dispatch, or which fields are populated from the server response.\n\nIf you can point me to the relevant area (e.g., a specific frontend feature folder, a `list` mutation/hook file, or a Redux store slice), I can look again. As a starting reference for the file layout, here are common search candidates in this kind of codebase:\n\n- `frontend/features/lists/` or `frontend/src/lists/`\n- `frontend/api/lists`\n- `store/listsSlice.ts` (if using Redux Toolkit)\n\nLet me know which module implements the list CRUD, and I'll pull the exact dispatch flow and response-field mapping for you.",
+      "evaluation": {
+        "correctness": {
+          "score": 0,
+          "reason": "The generated answer does not provide any information about dispatching `addList` or `updateList`, nor does it mention the specific fields (`title`, `_id`, `position`, `board_id`, `updated_at`, `created_at`). It incorrectly states that no relevant code was found."
+        },
+        "faithfulness": {
+          "score": 0,
+          "reason": "No claims are made that can be supported by the retrieved code chunks (none were provided). The answer offers no factual statements about the implementation."
+        },
+        "completeness": {
+          "score": 0,
+          "reason": "The answer fails to cover the essential details required by the question, providing neither the dispatch action names nor the populated fields."
+        }
+      },
+      "scores": {
+        "correctness": 0,
+        "faithfulness": 0,
+        "completeness": 0
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 20,
+      "query": "If a user attempts to update a list but the title remains unchanged or is empty, what happens to the hover window and why?",
+      "ground_truth_answer": "The function returns early without sending a request, so the hover window is not closed via `dispatch(closeHoverWindow())`. This occurs because the validation check `!data.title || data.title == dataRecived?.title || !dataRecived?.list_id` prevents the API call when no meaningful update is detected.",
+      "generated_answer": "I'll analyze the retrieved context to answer this question. The key logic is in `ListForm` (part 1) and `onSubmit` (part 2), which together define the update flow.\n\nLet me walk through what the instructions imply about the code before I answer.\n\n**Answer:**\n\nIf a user submits a list update where the title is empty or unchanged, **the hover window stays open** (neither closed nor modified), because the function returns early before any dispatch to close it.\n\n**Why — the relevant guard in `onSubmit` (ListForm, part 1):**\n\n```js\nconst onSubmit = async (data: ListCreator) => {\n    try {\n        if (openFor == 'LIST_UPDATION' &&\n            (!data.title\n                || data.title == dataRecived?.title\n                || !dataRecived?.list_id\n            )\n        ) return;\n```\n\nWhen `openFor === 'LIST_UPDATION'`, the function returns immediately (silently, no API call, no error toast) if any of these are true:\n- `!data.title` — the title is empty.\n- `data.title == dataRecived?.title` — the title hasn't changed (same string as the original list's title).\n- `!dataRecived?.list_id` — the id needed to target the list for a PUT wasn't passed in.\n\nThis early `return` happens **before** the `fetch(`${SERVER_PATH}/api/lists`, { method: \"PUT\" ... })` is made and, crucially, **before** `dispatch(closeHoverWindow())` is reached.\n\n**Where the window *would* close:**\n\nIn the success path (`onSubmit`, part 2), after `dispatch(updateList({...}))` (or `addList`) executes successfully, the code does:\n\n```js\ndispatch(closeHoverWindow())\n```\n\nAnd in the `catch` block, an error is surfaced via `dispatch(setOpen({ type: \"ERROR\", ... }))` instead of closing. Because the early return bypasses both the fetch and the try/catch outcomes, neither branch runs.\n\n**Effect on the modal:**\n\nThe `ModalFooter`'s `submitText` switches based on the same flag (`submitText={openFor == 'LIST_CREATION' ? \"Create List\" : \"Update List\"}`), and the form is only reset for updates in `useEffect`:\n\n```js\nuseEffect(() => {\n    if (openFor == 'LIST_UPDATION') {\n        reset({ title: dataRecived?.title as string })\n    }\n}, [openFor])\n```\n\nSo the form still shows the original title, and nothing is dispatched. The only other way out for the user is the close button's `onClose={() => dispatch(closeHoverWindow())}` on the `ModalFooter`.\n\n**In short:** The guard is an intentional no-op for redundant/invalid updates. Returning before the `try` body means no `updateList` action, no `closeHoverWindow()` action, and no `setOpen(ERROR)` action are dispatched — so the hover window remains exactly as it was.\n\n*Note: the constant string used in the guard is the literal `'LIST_UPDATION'`, which matches the `OpenFor.LIST_UPDATION` value defined in the global `OpenFor` const in the same chunk set.*",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer correctly states that the hover window remains open because the function returns early due to the guard condition, matching the ground‑truth explanation."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "The answer directly references the guard condition and the absence of dispatch(closeHoverWindow()), all of which are present in the retrieved code chunks."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "It includes the essential details required to answer the question and provides additional explanatory context without omitting any key point from the ground truth."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 21,
+      "query": "How does the `createList` service ensure a user owns the board before creating a list, and what specific fields are included in the response when a new list is successfully created?",
+      "ground_truth_answer": "The `createList` service first queries the `Board` model to verify the user owns the specified `board_id`. If ownership is not confirmed, it returns a 403 status. Upon success, it returns a 201 status with the new list data, including `_id`, `title`, `board_id`, `created_at`, `updated_at`, `position`, and an empty `cards` array.",
+      "generated_answer": "Based on the retrieved context, here is how the `createList` service handles board ownership and what it returns upon success.\n\n### 1. Ensuring Board Ownership\n\nThe `createList` service (lines 4–41) ensures the user owns the board by performing a database lookup before allowing the list creation.\n\n1.  **Identity Conversion:** It first converts the provided `board_id` and `user_id` strings into `mongoose.Types.ObjectId` objects.\n2.  **Database Query:** It uses `Board.findOne` to check if a board exists in the database where the `_id` matches the provided `board_id` **and** the `user_id` matches the provided `user_id`.\n\n```typescript\nconst doesUserOwnsTheBoard = await Board.findOne({\n    _id: board_id,\n    user_id: user_id\n});\n\nif (!doesUserOwnsTheBoard) {\n    return { status: 403, message: \"You don't own this board\" };\n}\n```\n\nIf no board is found that matches both IDs, the function immediately returns a `403` status with the message `\"You don't own this board\"`. If the query succeeds, it proceeds with the list creation.\n\n### 2. Successful Response Fields\n\nWhen the list is successfully created (status `201`), the service returns the `newList` object provided by the `List.create` method. Based on the fields passed to `List.create` in the service (lines 24–30), the response `data` object will specifically include:\n\n*   `board_id`: The ID of the board the list belongs to.\n*   `title`: The title of the new list.\n*   `position`: The position of the list, calculated as `numberOfList + 1` (where `numberOfList` is the current count of lists in that board).\n*   `created_at`: The timestamp of creation (`Date.now()`).\n*   `updated_at`: The timestamp of last update (`Date.now()`).\n*   `user_id`: The ID of the user who created the list.\n*   `_id`: The auto-generated ID for the new list (standard Mongoose behavior, referenced in the `data: newList` return).\n\n**Reference:**\n*   **Function:** `createList` (Service layer, lines 4–41)\n*   **Code Snippet:**\n    ```typescript\n    const newList = await List.create({\n        board_id: board_id,\n        title: title,\n        position: numberOfList + 1,\n        created_at: Date.now(),\n        updated_at: Date.now(),\n        user_id: user_id\n    });\n\n    return { status: 201, message: \"List created successfully\", data: newList };\n    ```",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly describes the board ownership check and includes most of the returned fields, but it omits the empty 'cards' array mentioned in the ground‑truth and adds 'user_id', which is not specified in the reference."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims made in the answer are directly supported by the retrieved code chunks, particularly the ownership query and the fields passed to List.create. No unsupported or contradictory statements are present."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer covers the essential ownership logic and most response fields, but it fails to mention the empty 'cards' array that is part of the expected response, thus not fully complete."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 2,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 22,
+      "query": "How does the frontend ListForm component handle the logic to prevent unnecessary updates when a user attempts to update a list without changing its title?",
+      "ground_truth_answer": "The frontend `onSubmit` function checks if `openFor` is `'LIST_UPDATION'` and if the new title is empty, identical to the existing title, or if `list_id` is missing. If any of these conditions are true, it returns early without sending a request. The backend `updateList` function then only updates the title if the `title` property is explicitly provided in the request body.",
+      "generated_answer": "The frontend `ListForm` component prevents unnecessary updates through an early return guard at the top of its `onSubmit` handler. Here's the relevant logic:\n\n```ts\nconst onSubmit = async (data: ListCreator) => {\n    try {\n        if (openFor == 'LIST_UPDATION' &&\n            (!data.title\n                || data.title == dataRecived?.title\n                || !dataRecived?.list_id\n            )\n        ) return;\n        // ... proceed with fetch\n```\n\n**How it works:**\n\n1. **Mode check:** The `openFor` state (from `state.hoverWindow.type` in Redux) indicates whether the form is open for `'LIST_CREATION'` or `'LIST_UPDATION'`. The guard only applies when `openFor == 'LIST_UPDATION'`.\n\n2. **Title comparison:** When in update mode, the form's currently-entered `data.title` is compared against the title of the list being edited, which comes from the Redux store: `dataRecived?.title` (where `dataRecived` is `state.hoverWindow.data`). If the titles are equal, the function returns early and no `PUT` request is sent.\n\n3. **Empty title check:** If `data.title` is falsy (empty or undefined), the function also bails out, preventing an update with a blank title.\n\n4. **Missing ID check:** If `dataRecived?.list_id` is missing, the update is aborted as well, since there's no target list to update.\n\n**Supporting context:**\n\n- The form is populated with the existing title on open via a `useEffect` that calls `reset({ title: dataRecived?.title as string })` when `openFor == 'LIST_UPDATION'`, so on load the entered value matches the stored title, and a no-op submit is caught by the guard above.\n- Only if none of those conditions hold does it proceed to issue a `fetch` to `${SERVER_PATH}/api/lists` with method `\"PUT\"` (for updates) or `\"POST\"` (for creation):\n  ```ts\n  method: openFor == 'LIST_UPDATION' ? \"PUT\" : \"POST\",\n  body: JSON.stringify(openFor == 'LIST_UPDATION' ?\n      { ...data, list_id: dataRecived?.list_id, board_id: dataRecived?.board_id } :\n      { ...data, board_id: dataRecived?.board_id }),\n  ```\n\n**Note on the broader flow:** The `ListForm` component itself is responsible for skipping the network call when nothing changed. Separately, the backend has a `listUpdateValidator` middleware that validates the shape of the request with `listUpdater.safeParse`, but it's the client-side guard in `onSubmit` that specifically suppresses the redundant \"title unchanged\" update.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer correctly explains that the frontend onSubmit guard checks for openFor == 'LIST_UPDATION', empty or unchanged title, and missing list_id, returning early if any condition holds. It also notes that the backend only updates the title when provided, matching the ground‑truth explanation."
+        },
+        "faithfulness": {
+          "score": 1,
+          "reason": "The early‑return logic is directly supported by the retrieved code chunks. The claim that the backend only updates the title when the title property is explicitly provided is not directly shown in the provided chunks, so it is not fully verified by the evidence."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "All essential information requested in the question is covered: the frontend guard conditions and the backend behaviour regarding title updates."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 1,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 23,
+      "query": "What happens to the refresh token and access token when a user successfully logs in, and how does the refresh token expiration time get set?",
+      "ground_truth_answer": "Both login and user creation generate a new access token and refresh token. The refresh token is stored in the database with an expiration time set to 4 days from the current timestamp (1000 * 60 * 60 * 24 * 4 milliseconds).",
+      "generated_answer": "When a user logs in the flow works like this:\n\n| Step | What happens | Code reference |\n|------|--------------|----------------|\n| 1 | The **loginUserService** (the function named `loginUser (part 2)` in the retrieved snippets) checks the email and password, then calls the token generators. | `loginUser (part 2)` – lines 52‑91 |\n| 2 | **Access token** – `accessTokenGenrator(getUser.id)` returns a pair `[accessToken, expiresIn]`. The token is a short‑lived JWT (the exact lifetime is whatever `accessTokenGenrator` sets; the controller stores that value as `access_token_expires_in`). | Lines 66‑68 |\n| 3 | **Refresh token** – `refreshTokenGenrator()` creates a new random string. It is stored in MongoDB via `RefereshTokenModel.updateOne` together with an `expires_at` timestamp set to *current time + 4 days*. | `RefereshTokenModel.updateOne` – lines 80‑86 (`expires_at: new Date().getTime() + 1000 * 60 * 60 * 24 * 4`) |\n| 4 | The **controller** (`loginUser` – lines 38‑65) receives the service result. If `result.status === 200` it writes two HTTP‑only cookies:  \n  * `refresh_token` with `maxAge",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer accurately states that a new access token and refresh token are generated on successful login, that the refresh token is stored with a 4‑day expiration, and matches the semantics of the ground truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims (token generation, storage, 4‑day expiry, cookie setting) are directly supported by the retrieved code snippets for the login service and controller."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers the essential details asked: token creation, storage, and expiry calculation. Additional implementation details (cookie handling) are harmless additions."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 24,
+      "query": "What is the complete data flow for updating a user's profile image, from the frontend file selection to the backend validation middleware?",
+      "ground_truth_answer": "The flow starts in the frontend where  captures the selected file and updates state (), then  appends this file to a  object and sends a  request to . The backend receives this in , which uses  (defined with  as an optional string) to parse the request body. If validation passes, the cleaned data is attached to  before proceeding to the next middleware.",
+      "generated_answer": "**High‑level picture**\n\n| Step | What happens | Key code |\n|------|--------------|----------|\n| 1 | User picks an image file in the UI. | – (React state updates with the File object) |\n| 2 | `handleSave` builds a `FormData` payload, appends the file, and `fetch`s the backend endpoint. | `handleSave` (lines 41‑78) |\n| 3 | The request arrives at the Express server with `multipart/form‑data`. Multer parses the files and stores them in `uploads/`. | Multer storage & `upload` middleware (global vars, lines ‑1‑‑) |\n| 4 | The route handler runs the validation middleware (`updateUserValidationMiddleware`) which checks the **body** (name, profileImage, backgroundImage) against a Zod schema. | `updateUserValidationMiddleware` (lines 11‑24) |\n| 5 | The actual `updateUser` controller receives the parsed body and the files, builds URLs for the stored images, and calls the service layer to persist the changes. | `updateUser` (lines 144‑177) |\n\n---\n\n### 1. Front‑end file selection → `handleSave`\n\nWhen the user selects a profile image, the component stores that `File` object in local state (`profileImageFile`).  \n`handleSave` runs on form submission:\n\n```ts\nconst handleSave = async () => {\n    ...\n    const formData = new FormData();\n    if (profileImageFile) {\n        formData.append('profileImage', profileImageFile);\n    }\n    ...\n    const SERVER_PATH = import.meta.env.VITE_BACKEND_PATH;\n    const res = await fetch(`${SERVER_PATH}/api/users`, {\n        method: \"PUT\",\n        credentials: \"include\",\n        body: formData   // ← multipart/form-data\n    });\n    ...\n};\n```\n\n- **Lines 41‑78** (retrieved context).  \n- The `FormData` object serialises the file into `multipart/form-data`, which the browser automatically sets the `Content‑Type` header for.\n\n---\n\n### 2. Back‑end receives a multipart request\n\nThe Express router that handles `PUT /api/users` is expected to have the Multer upload middleware attached **before** the validation middleware:\n\n```ts\n// global vars – Multer configuration\nconst uploadDir = path.join(process.cwd(), 'uploads');\nconst storage = multer.diskStorage({\n    destination: (req, file, cb",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer accurately describes the end‑to‑end data flow, matching the ground‑truth explanation."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are directly supported by the retrieved code snippets: `handleSave` (lines 41‑78), Multer configuration (global variables), `updateUserValidationMiddleware` (lines 11‑24), and `updateUser` (lines 144‑177)."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers every essential step from file selection to validation middleware, and includes the subsequent controller logic without omitting any required detail."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 25,
+      "query": "What CORS configuration is applied to the Socket.IO server and which HTTP methods are permitted?",
+      "ground_truth_answer": "The Socket.IO server is configured with CORS to allow requests from 'http://localhost:5173'. It permits GET, POST, PUT, and DELETE HTTP methods and allows credentials to be sent with requests.",
+      "generated_answer": "The Socket.IO server is created with a custom CORS configuration:\n\n```ts\nconst io = new Server(server, {\n    cors: {\n        origin: 'http://localhost:5173',\n        methods: ['GET', 'POST', 'PUT', 'DELETE'],\n        allowedHeaders: ['Content-Type', 'Authorization'],\n        credentials: true\n    }\n});\n```\n\n- **Origin**: Only requests from `http://localhost:5173` are accepted.  \n- **Allowed HTTP methods**: `GET`, `POST`, `PUT`, and `DELETE`.  \n- **Allowed headers**: `Content-Type` and `Authorization`.  \n- **Credentials**: Cross‑origin requests may include credentials (`cookies`, `Authorization` header, etc.).  \n\nThis configuration is specified in the global scope of the server file (see the snippet above).",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer accurately states the origin, allowed HTTP methods, and credentials setting as given in the ground-truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims are directly supported by the retrieved code snippet showing the Socket.IO configuration with the same values."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer provides all essential information requested: the CORS origin, allowed methods, and credential allowance, matching the ground-truth."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 26,
+      "query": "What specific conditions must be met for a user to successfully retrieve a board by its ID, considering both frontend state management and backend validation logic?",
+      "ground_truth_answer": "The backend getBoardById service requires both user_id and board_id to be present in the request data. It then queries the Board collection using an  condition to match either the user_id or a visibility of 'public'. The frontend boardSlice manages the state of these boards, including loading and error states.",
+      "generated_answer": "**Backend validation – what a request must satisfy**\n\n1. **Presence of identifiers**  \n   * The route handler expects the board’s ID to be supplied as a URL parameter (`req.params.id`) and the user’s ID to be available on the authenticated request object (`req.user?.id`).  \n   * In the service (`getBoardById`), both `data.board_id` and `data.user_id` are verified:\n\n   ```ts\n   if (!data.board_id || !data.user_id) {\n       return { status: 400, message: \"Invalid request\" }\n   }\n   ```\n\n   (lines 107‑112 of the service code)\n\n2. **Board existence**  \n   * The service queries the `Board` collection for a document whose `_id` matches `board_id` **and** whose owner is the requesting user **or** whose visibility is `\"public\"`:\n\n   ```ts\n   const board = await Board.findOne({\n       _id: data.board_id,\n       $or: [\n           { user_id: data.user_id },\n           { visibility: \"public\" }\n       ]\n   })\n   ```\n\n   (lines 114‑120)\n\n   * If no such board is found, the service returns a 404 with the message `\"Board not found\"`.\n\n3. **Successful response**  \n   * When a matching board is located, the service also fetches its associated lists and cards, builds a nested structure, and returns a 200 response with the board data.\n\n4. **Error handling**  \n   * Any unexpected error inside the `try` block results in a 500 response.\n\n**Frontend state management**\n\nThe provided repository snippets do not contain any frontend code or state‑management logic (e.g., Redux, React Context, or Vuex). Therefore, I cannot detail what the UI must do to trigger or handle this request. The backend requires the two identifiers and the board to satisfy the ownership/public visibility rule; any frontend implementation would need to supply those values and handle the 200/400/404/500 responses appropriately.\n\n---\n\n**Summary**\n\n- The request must carry a valid `board_id` (from the URL) and a valid `user_id` (from the authenticated user).  \n- The board must exist in the database and be either owned by that user or marked as `public`.  \n- Only then will the backend return the full board data with status 200.  \n\nNo frontend‑specific conditions are documented in the current repository context.",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly describes the backend validation logic (presence of user_id and board_id, query with $or, status codes). However, it incorrectly states that no frontend state management is present, whereas the ground‑truth explicitly mentions that the frontend boardSlice manages loading and error states. This omission makes the answer partially correct but not fully accurate."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims about the backend logic (parameter checks, Board.findOne with $or, error handling) are directly supported by the retrieved code snippets. The assertion that no frontend code is in the retrieved chunks is also supported by the absence of a boardSlice snippet."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer covers the necessary backend conditions but fails to address the frontend state‑management requirement highlighted in the ground‑truth. Therefore it is incomplete with respect to the question."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 2,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 27,
+      "query": "In the test file for the refresh token route, how is the mock for  configured, and what specific request payload is sent to the  endpoint?",
+      "ground_truth_answer": "The test mocks  as . The request to  is a POST that includes the  cookie and sends a JSON body containing .",
+      "generated_answer": "In the test file for the **refresh‑token** route the `refereshToken` helper is turned into a Jest mock like this:\n\n```ts\nconst mockRefereshToken = refereshToken as jest.Mock;\n```\n\nThis simply casts the real `refereshToken` function to the `jest.Mock` type so that its calls can be tracked or stubbed during the test.  \n(See the snippet in the retrieved context.)\n\nThe test then issues a **POST** request to the refresh‑token endpoint:\n\n```ts\nconst res = await request(app)\n  .post('/api/users/refresh-token')\n  .set('Cookie', ['refresh_token=fake-refresh-token'])\n  .send({\n    user_id: \"1\",\n  });\n```\n\nThe request payload sent to `POST /api/users/refresh-token` is the JSON body\n\n```json\n{ \"user_id\": \"1\" }\n```\n\n(Optionally, a cookie named `refresh_token` with the value `fake-refresh-token` is included, but the payload itself is just the `user_id` field.)",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer accurately states that the mock is configured as `refereshToken as jest.Mock` and that the POST request sends a JSON body with `user_id: \"1\"`, matching the ground-truth information."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "The generated claims are directly supported by the retrieved code chunk that shows the mock assignment and the POST request with the cookie and payload."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "All essential details requested by the question are covered: the mock configuration and the exact request payload (`{ user_id: \"1\" }`). Additional cookie information does not detract from completeness."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 28,
+      "query": "Describe the complete process for a user to log in, including how the frontend sends credentials, how the backend verifies the password, and how the refresh token is managed upon successful login.",
+      "ground_truth_answer": "The frontend sends a POST request with email and password to the backend. The  function finds the user by email and uses  to verify the password. If the password is correct, it generates a new access token and a new refresh token. It then updates the existing refresh token record in the  for that user with the new token and a 4-day expiration. Finally, it returns the user ID, access token, refresh token, and expiration time.",
+      "generated_answer": "### High‑level login flow\n\n| Step | What happens | Code reference |\n|------|--------------|----------------|\n| 1. **Frontend sends credentials** | The user types an e‑mail and password into a login form and the client code makes a **POST** request to `/api/users/login` (or whatever route the Express router exposes). The request body contains `{ email, password }`. | — |\n| 2. **Backend receives the request** | Express parses the body and hands it to the `loginUser` controller. | `loginUser` function (lines 38‑65 in the repository). |\n| 3. **Password verification** | `loginUser` calls a service layer function `loginUserService(req.body)`.  The service is responsible for:<br> • Loading the user record from the database (`UserModel`).<br> • Comparing the supplied plain‑text password with the stored hash using `bcrypt.compare`.<br> • If the comparison succeeds, generating an access token and a refresh token. | The test code shows the service uses `bcrypt.compare` and `UserModel`:<br>```ts\\nconst mockUserModel = UserModel as jest.Mocked<typeof UserModel>;\\nconst mockCompare = bcrypt.compare as jest.Mock;\\n```\\n(see the global‑variables snippet). |\n| 4. **Token generation & storage** | * Access token – short‑lived JWT that is returned to the client as a cookie.<br> * Refresh token – long‑lived JWT that is persisted in the database via `RefreshTokenModel` so it can be invalidated on logout or rotation. | The test code also hints at token generation:<br>```ts\\nconst [accessToken] = accessTokenGenrator(\\\"1\\\");\\n``` |\n| 5. **Backend responds** | On success (`status === 200`) the controller sets two cookies:<br>  * `refresh_token`: httpOnly, non‑secure (dev), max‑age 4 days.<br>  * `access_token`: httpOnly, non‑secure, max‑age equal to the token’s expiry.<br> It then returns a JSON body with `user_id` and a friendly message. | ```ts\\nres.cookie('refresh_token', result.refresh_token, {\\n    httpOnly: true,\\n    secure: false,\\n    maxAge: 1000 * 60 * 60 * 24 * 4\\n});\\n\\nres.cookie('access_token', result.access_token, {\\n    httpOnly: true,\\n    secure: false,\\n",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly describes the flow of sending credentials, verifying the password with bcrypt, generating access and refresh tokens, and setting cookies. However, it omits the explicit step of updating the refresh token record in the database with a 4‑day expiration and does not mention returning the expiration time, which are key parts of the ground‑truth description."
+        },
+        "faithfulness": {
+          "score": 1,
+          "reason": "The answer references the loginUser controller and test snippets that confirm credential handling and token generation via bcrypt and the service layer. It claims that the refresh token is persisted via RefreshTokenModel and that it can be invalidated, but the provided code chunks do not explicitly show the database update, so that part is not directly supported by the evidence."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer covers most essential steps (frontend POST, backend verification, token creation, cookie setting, and JSON response), but it fails to mention the database update of the refresh token record and the return of the expiration time, which are required by the ground‑truth answer."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 1,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 29,
+      "query": "What is the complete flow for a new user registration, including how the backend creates the user, generates tokens, and stores the refresh token, and how does the frontend handle the successful response?",
+      "ground_truth_answer": "When a user registers via the frontend, the  function sends a POST request to  with the user data. The backend's  function checks if the email exists, hashes the password, creates the user, generates an access token and a refresh token, and then attempts to save the refresh token to the  with an expiration of 4 days. If successful, it returns the user ID, access token, refresh token, and expiration time to the frontend, which then navigates the user to the dashboard.",
+      "generated_answer": "## 1. Front‑end → Back‑end: the registration request  \n\n| Step | What the front‑end does | Endpoint & method | Payload example |\n|------|------------------------|-------------------|-----------------|\n| 1 | Send the user’s data (name, email, password). | `POST /api/users` | `{ \"name\":\"Jane\", \"email\":\"jane@example.com\", \"password\":\"secret\" }` |\n\nThe request is made with a normal HTTP POST (e.g. `fetch`, Axios, `fetch‑api`, etc.).  \nNo cookies are sent with the first registration request.\n\n---\n\n## 2. Back‑end: User creation flow  \n\nBelow is the order in which the code executes.  \nAll snippets are taken from the repository files that were returned.\n\n### 2.1  Controller – `createUser` (lines 11‑36)\n\n```ts\nconst createUser = async (req: Request, res: Response, next: NextFunction) => {\n    const result = await createUserService(req.body)\n\n    if (result.status === 200) {\n        // ① Store the refresh token in a cookie\n        res.cookie('refresh_token', result.refresh_token, {\n            httpOnly: true,\n            secure: false,\n            // sameSite: 'strict',\n            maxAge: 1000 * 60 * 60 * 24 * 4          // 4 days\n        })\n\n        // ② Store the access token in a cookie\n        res.cookie('access_token', result.access_token, {\n            httpOnly: true,\n            secure: false,\n            // sameSite: 'strict',\n            maxAge: result.access_token_expires_in\n        })\n\n        // ③ Return the minimal payload to the client\n        return res.status(result.status).json({\n            user_id: result.user_id,\n            message: result.message\n        })\n    }\n\n    // Error path – just forward",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer accurately describes the front‑end POST request and the backend controller logic for setting cookies, but it omits key steps from the service layer such as checking for an existing email, hashing the password, creating the user record, and explicitly returning the access/refresh tokens and expiration in the response body. These omissions mean the explanation is not fully correct relative to the ground‑truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims made about the controller’s cookie handling and the structure of the JSON response are directly supported by the retrieved code chunk for `createUser`. No unsupported or contradictory statements are present."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer covers many essential points but misses the navigation to the dashboard after a successful response, as well as the service‑layer details of hashing, email uniqueness check, and returning tokens and expiration. Thus it is incomplete compared to the ground‑truth."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 2,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 30,
+      "query": "How does the logout process differ from the token refresh process regarding the handling of the refresh token and user data retrieval?",
+      "ground_truth_answer": "The logout function deletes the refresh token record associated with the user_id from the RefereshTokenModel and does not retrieve or return the user's profile data. Conversely, the token refresh function first validates the token exists and is not expired, then generates a new access token, creates a new refresh token, updates the database, and explicitly fetches and returns the user's profile data before returning the new tokens.",
+      "generated_answer": "**Logout vs. Token‑Refresh**\n\n| Feature | Logout process (repo code) | Token‑refresh process (repo code – not shown but inferred from the test setup) |\n|---------|----------------------------|-------------------------------------------------------------------------------|\n| **Trigger** | HTTP `DELETE /api/users` or similar (handled by the `logout` controller) | HTTP `POST /api/users/refresh-token` (tested with `request(app).post('/api/users/refresh-token')`) |\n| **Primary input** | `req.user?.id` (the authenticated user’s ID, extracted by your authentication middleware) | The `refresh_token` cookie that was previously set when the user logged in |\n| **User data retrieval** | Service checks the DB for the user by ID:<br>`const doesUserExist = await UserModel.findOne({ _id: user_id })` (lines 93‑100) | The refresh‑token endpoint would typically decode the refresh token to obtain the `user_id`, then look up that user in the DB (this logic is not shown in the retrieved snippets, but the test sends a `user_id` payload and a `refresh_token` cookie). |\n| **Refresh‑token handling** | **Deletes** the refresh‑token record from the DB:<br>`await RefereshTokenModel.deleteOne({ user_id: user_id })` (lines 105‑107). Then it clears the two cookies (`refresh_token` & `access_token`) in the response (lines 68‑84). | **Keeps** the refresh‑token record in the DB. The endpoint simply validates the supplied refresh token, issues a brand‑new access token (and often a new refresh token), and returns them – no deletion of the existing refresh‑token record. |\n| **Response** | Returns a JSON payload with a status (`200` on success, `404` if no user found, `500` on error) and a message (`\"User Logged Out\"` or an error string). | Would return a new access token (and optionally a new refresh token) in JSON. The exact status/message are not shown but the test only checks the request flow. |\n\n### What we see in the code\n\n- **Logout controller**  \n  ```ts\n  const logout = async (req: Request, res: Response) => {\n      const user_id = req.user?.id;\n      const result = await logoutService(user_id)\n      …\n      res.clearCookie('refresh_token', { … });\n      res.clearCookie('access_token', { … });\n      return res.status(result.status).json({ message: result.message })\n  }\n  ```\n  (lines 67‑88)\n\n- **Logout service**  \n  ```ts\n  const logout = async (user_id: string) => {\n      try {\n          const doesUserExist = await UserModel.findOne({ _id: user_id })\n          if (!doesUserExist) return { status: 404, message: \"User not found\" }\n\n          try {\n              await RefereshTokenModel.deleteOne({ user_id: user_id })\n              return { status: 200, message: \"User Logged Out\" }\n          } catch (error) {\n              console.log(error);\n              return { status:",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly states that logout deletes the refresh token and does not remove user data, and that token refresh does not delete the token but issues new tokens. However, it fails to explicitly mention that token refresh fetches and returns the user's profile data, which is a key difference highlighted in the ground‑truth."
+        },
+        "faithfulness": {
+          "score": 1,
+          "reason": "The claims about logout (deleting the refresh token, clearing cookies, and checking for the user in the DB) are supported by the retrieved code chunks. The description of the token‑refresh process, however, is not directly supported by any of the provided code snippets, making that part less faithful."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer covers most of the essential differences between logout and token refresh, but it omits the explicit detail that token refresh fetches and returns the user's profile data. Thus it is partially complete."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 1,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 31,
+      "query": "How does the updateBoard reducer modify a board and what specific properties can be changed?",
+      "ground_truth_answer": "The updateBoard reducer finds a board by its _id in the state's boards array and updates its title, description, and visibility properties with the new values from the action payload. These three properties are the only ones that can be modified through this reducer.",
+      "generated_answer": "The **`updateBoard` reducer** is defined inside the `boardSlice` that manages the local Redux state for boards.  \nWhen the action is dispatched, the reducer does the following:\n\n```javascript\n// Find the board in the local array that matches the payload _id\nconst board = state.boards.find(b => b._id === action.payload._id);\n\nif (board) {\n    // Update only the mutable fields from the payload\n    board.title       = action.payload.title;\n    board.description = action.payload.description;\n    board.visibility  = action.payload.visibility;\n}\n```\n\n* **How it modifies a board:**  \n  * It locates the board object in `state.boards` by matching the `_id` supplied in the action payload.  \n  * Once found, it mutates that object’s `title`, `description`, and `visibility` properties to the new values provided in the payload.  \n  * No other fields are touched – `_id`, `created_at`, `updated_at`, or any other metadata remain unchanged.\n\n* **Properties that can be changed via this reducer:**  \n  1. `title` – The board’s display name.  \n  2. `description` – The board’s descriptive text.  \n  3. `visibility` – Either `'Public'` or `'Private'`.\n\nThus, the reducer allows clients to modify the board’s title, description, and visibility directly in the Redux store while preserving all other board attributes.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer correctly explains that the reducer finds a board by _id and updates only the title, description, and visibility properties, matching the ground‑truth explanation."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "The claims are directly supported by the boardSlice code chunk that shows the reducer mutating those three fields and no others."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "All essential information requested by the question is provided, and the answer does not omit any key detail or add irrelevant information."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 32,
+      "query": "What are the required fields for a Card object and how does it differ from a List object?",
+      "ground_truth_answer": "A Card object requires _id, user_id, board_id, title, description, deadline, list_id, status (with three possible string literal values), and timestamp fields. A List object is similar but lacks the user_id, deadline, and status fields, instead having a position number.",
+      "generated_answer": "**Required fields for a `Card`**\n\nThe Mongoose schema for a Card (`cardSchema`) declares the following properties as required:\n\n| Field | Type | Notes |\n|-------|------|-------|\n| `list_id` | `mongoose.Schema.Types.ObjectId` (refers to a `List`) | Must be provided to associate the card with a list. |\n| `title` | `String` | Cannot be empty (`required: true`). |\n| `description` | `String` | Cannot be empty (`required: true`). |\n| `position` | `Number` | Must be supplied to order cards within a list. |\n\nAdditionally, `created_at` and `updated_at` are set automatically with `default: Date.now`, so they are not required when creating a document but will be populated by Mongoose.\n\n> *Source:* `cardSchema` definition (lines –1 to –1 in the retrieved context). The code shows each field with `required: true` or default values.\n\n---\n\n**How it differs from a `List`**\n\nThe repository also defines a `ListInterface` that extends an (unspecified) `List` type and adds an optional `cards` property:\n\n```ts\ninterface ListInterface extends List {\n    cards?: Card[]\n}\n```\n\nThis tells us that a `List` can contain an array of `Card` objects, but the schema for the `List` itself is not present in the provided snippets. Consequently:\n\n- **Card**: Requires `list_id`, `title`, `description`, and `position` (plus timestamps).\n- **List**: The repository does not show its required fields. From the context, a `List` probably has its own identity fields such as `title`, `board_id`, etc., but those are not defined here.\n\n> *Source:* `ListInterface` definition (lines 4‑6). No concrete `List` schema is included in the extracted snippets, so we cannot list its required fields.",
+      "evaluation": {
+        "correctness": {
+          "score": 0,
+          "reason": "The answer omits several mandatory fields required for a Card (_id, user_id, board_id, deadline, status) and incorrectly describes the differences between Card and List, contradicting the ground‑truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims made are supported by the retrieved code snippets: the Card schema lists list_id, title, description, and position as required; the ListInterface definition is reproduced accurately; the answer appropriately notes that the List schema is not present in the snippets."
+        },
+        "completeness": {
+          "score": 0,
+          "reason": "The answer fails to list the essential Card fields given in the ground‑truth and does not mention the List's position number or the missing fields; it thus does not fully address the question."
+        }
+      },
+      "scores": {
+        "correctness": 0,
+        "faithfulness": 2,
+        "completeness": 0
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 33,
+      "query": "What is the complete structure of the InitialState interface and how does it relate to the boardSlice reducers?",
+      "ground_truth_answer": "The InitialState interface defines boards as an array of Board objects, a boolean loading state, and a nullable string error state. The boardSlice uses this exact structure in its initialState, with reducers like addBoard and removeBoard modifying the boards array while extraReducers manage the loading and error states based on the getBoardData async thunk.",
+      "generated_answer": "**1. Complete `InitialState` interface (used by the *board* slice)**  \n\nThe board slice defines its state using the following interface, which is extracted from the repository:\n\n```ts\ninterface InitialState {\n    boards: Board[];\n    loading: boolean;\n    error: string | null;\n}\n```\n\n*File context* – lines 3‑7 of the file containing the board slice definition (retrieved chunk 2).\n\n*Supporting types* – the `Board` interface that the array holds:\n\n```ts\ninterface Board {\n    _id: string;\n    title: string;\n    description: string;\n    visibility: 'Public' | 'Private';\n    created_at: string;\n    updated_at: string;\n}\n```\n\n*File context* – lines 0‑7 of the `Board` interface definition (retrieved chunk 4).\n\nSo a `boardSlice` state looks like:\n\n```ts\n{\n    boards: [\n        { _id: '...', title: '...', description: '...', visibility: 'Public', created_at: '...', updated_at: '...' },\n        /* …more boards… */\n    ],\n    loading: false,\n    error: null\n}\n```\n\n---\n\n**2. How the interface relates to the `boardSlice` reducers**\n\n*State typing*  \n- The slice’s `initialState` variable is typed as `InitialState`, ensuring that the shape of the state object conforms to the interface above.  \n- TypeScript will enforce that every reducer can only",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer accurately states the structure of the InitialState interface (boards array, loading boolean, error string|null) as required by the ground truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All factual claims are directly supported by the retrieved code chunks: the interface definition in boardSlice and the Board type definition."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "While the answer describes the interface structure, it only partially explains its relation to the boardSlice reducers (mentions type enforcement but omits the addBoard/removeBoard and loading/error handling)."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 34,
+      "query": "How does the system handle old image files when a user updates their profile picture or background image?",
+      "ground_truth_answer": "When updating a user's profile, the system extracts the old filename from the previous image path, constructs the full file path using the 'uploads' directory, and deletes the file if it exists using fs.unlinkSync.",
+      "generated_answer": "The **updateUser** service is responsible for cleaning up the old image files when a user uploads a new profile or background picture.  \nWhen the service receives an update request it\n\n1. **Finds the current user record**  \n   ```ts\n   const doesUserExist = await UserModel.findOne({ _id: data.user_id })\n   ```\n\n2. **Updates the user document** with the new data  \n   ```ts\n   await UserModel.updateOne({ _id: data.user_id }, { $set: updateData })\n   ```\n\n3. **Deletes any previous image files** that are being replaced.  \n   This logic lives in the `try` block that follows the `updateOne` call (lines 167‑210 in the `updateUser (part 1)` and `part 2` chunks):\n\n   ```ts\n   // Delete old images if new ones were provided\n   try {\n       if (data.profileImage && doesUserExist.profileImage) {\n           const oldFileName = doesUserExist.profileImage.split('/').pop();\n           if (oldFileName) {\n               const oldFilePath = path.join(process.cwd(), 'uploads', oldFileName);\n               if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);\n           }\n       }\n       if (data.backgroundImage && doesUserExist.backgroundImage) {\n           const oldFileName = doesUserExist.backgroundImage.split('/').pop();\n           if (oldFileName) {\n               const oldFilePath = path.join(process.cwd(), 'uploads', oldFileName);\n               if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);\n           }\n       }\n   } catch (err) {\n       console.error(\"Error deleting old images:\", err);\n   }\n   ```\n\n   * The code checks whether the request contains a new `profileImage` or `backgroundImage` URL (`data.profileImage`, `data.backgroundImage`).\n   * It then verifies that the user record had a previous image (`doesUserExist.profileImage` / `backgroundImage`).\n   * It extracts the filename from the old URL (`split('/').pop()`), constructs the full path to the `uploads` directory, and deletes the file if it exists (`fs.unlinkSync`).\n\n4. **Error handling**  \n   * If the file‑system deletion throws an error, it is logged (`console.error`) but does not affect the overall response— the API still returns a `200` status for a successful update.\n\n**Summary**\n\n- When a new profile or background image is uploaded, the service updates the database entry and immediately deletes the old image file from the local `uploads` folder.\n- The deletion only occurs if a new image is supplied and a previous image existed.\n- The process is silent on failures (just logs the error) and",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The answer accurately describes the process of deleting old image files during an update, matching the semantic content of the ground‑truth answer."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All statements are supported by the provided code chunks, especially the deletion logic in updateUser (part 1 and 2) and the error handling shown there."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential aspects of the question—finding the user, updating data, extracting and deleting the old image, handling errors—without extraneous or missing details."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 35,
+      "query": "What is the complete flow for refreshing an access token, including validation steps and what happens if the token doesn't exist or is expired?",
+      "ground_truth_answer": "The system first checks if the refresh token exists in the database, returning a 404 if not. It then verifies if the token is expired by comparing expires_at with the current time. If valid, it generates a new access token and refresh token, updates the database with the new refresh token, and returns the user data along with the new tokens.",
+      "generated_answer": "**Overview**\n\nWhen a client calls the *refresh‑token* endpoint (e.g., `POST /api/users/refresh-token`), the following steps happen:\n\n| Step | What happens | Key code |\n|------|--------------|----------|\n| 1 | The controller (`refereshToken`) reads the `refresh_token` cookie. | `const refresh_token = req.cookies.refresh_token;` (lines 90‑92) |\n| 2 | If the cookie is missing, the controller immediately returns **400 Bad Request** with a *Refresh token not found* message. | Lines 92‑99 |\n| 3 | If the cookie is present, the controller forwards the token string to the service `refereshTokenService`. | `const result = await refereshTokenService(refresh_token)` (lines 101‑103) |\n| 4 | **Service validation** – the service looks up the token in `RefereshTokenModel`. | `const doesTokenExist = await RefereshTokenModel.findOne({ token: refresh_token })` (lines 116‑117) |\n|   | • If no document is found, it returns `{ status: 404, message: \"Token not found\" }`. | lines 118‑119 |\n|   | • If the stored `expires_at` is in the past (`doesTokenExist.expires_at < Date.now()`), it returns `{ status: 404, message: \"Token expired\" }`. | lines 120‑122 |\n|   | • If the token exists and is still valid, the service generates a **new access token** (`accessTokenGenrator`) and a **new refresh token** (`refreshTokenGenrator`). | lines 124‑128 |\n|   | • It updates the token record in the database, replacing the old token and resetting the expiry to 4 days from now. | `await RefereshTokenModel.updateOne({ token: refresh_token }, { token: newRefreshToken, expires_at: Date.now() + 1000 * 60 * 60 * 24 * 4 })` (lines 129‑132) |\n|   | • It fetches the user data (`getUser({ user_id: doesTokenExist.user_id })`) and returns a success payload: status 200, the new tokens, user id, user object,",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer accurately describes the flow and matches the ground truth without contradictions or missing core steps."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All assertions in the answer are directly supported by the provided code snippets: token lookup, 404 handling, expiry check, token generation, database update, and response payload."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers every essential point from the ground truth—including existence check, expiration check, token regeneration, database update, and response—and also includes the controller's cookie handling, which does not detract from completeness."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 36,
+      "query": "What happens to the refresh token when a user successfully logs in versus when they request a new token via the refresh token endpoint?",
+      "ground_truth_answer": "During login, the system updates the existing refresh token for the user or creates a new one using upsert if it doesn't exist. When using the refresh token endpoint, the system generates a completely new refresh token and updates the database with this new token, replacing the old one.",
+      "generated_answer": "**What happens to the refresh token**\n\n| Scenario | What the server does | Resulting cookie |\n|----------|----------------------|------------------|\n| **Successful login** | `loginUser` calls `loginUserService(req.body)` and receives a `result` that includes a fresh `refresh_token`. The handler writes that token into a cookie:<br>`res.cookie('refresh_token', result.refresh_token, { … })` | The browser gets a new **refresh‑token cookie** (plus an `access_token` cookie). |\n| **Requesting a new token (refresh‑token endpoint)** | `refereshToken` reads the existing `refresh_token` from `req.cookies`. After validating it via `refereshTokenService(refresh_token)`, the handler receives a new token in `result.refresh_token` and again writes it to the cookie:<br>`res.cookie('refresh_token', result.refresh_token, { … })` | The browser receives a *new* **refresh‑token cookie** (and a new `access_token` cookie).\n\n### Code snippets\n\n**loginUser (lines 38‑65)**  \n```ts\nconst result = await loginUserService(req.body)\nif (result.status === 200) {\n  res.cookie('refresh_token', result.refresh_token, {\n    httpOnly: true,\n    secure: false,\n    maxAge: 1000 * 60 * 60 * 24 * 4\n  })\n  …\n```\n\n**refereshToken (lines 90‑127)**  \n```ts\nconst refresh_token = req.cookies.refresh_token;\n…\nconst result = await refereshTokenService(refresh_token)\nif (result.status === 200) {\n  res.cookie('refresh_token', result.refresh_token, {\n    httpOnly: true,\n    secure: false,\n    maxAge: 1000 * 60 * 60 * 24 * 4\n  })\n  …\n```\n\n### Summary\n\n* On **login**, the server issues a brand‑new refresh token and sets it in a cookie.  \n* On **refresh‑token** requests, the server verifies the existing token, then issues a *new* refresh token (and a new access token) and replaces the old cookie with the new one.  \n\nBoth endpoints therefore always replace the old refresh‑token cookie with a fresh token, but the first is triggered by credentials, and the second by the existing cookie.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly states that during login a new refresh token is issued (or an existing one is updated) and that during a refresh‑token request a new refresh token is generated and replaces the old one, matching the semantic meaning of the ground‑truth."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "The claims are supported by the retrieved code: the `loginUser` function sets a `refresh_token` cookie from `result.refresh_token`, and the `refereshToken` function reads the cookie, calls a service, and then writes a new `refresh_token` cookie. These snippets confirm the described behavior."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential aspects requested: it explains token handling on login and on the refresh endpoint, includes code references, and does not omit any key detail from the ground‑truth."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 37,
+      "query": "What is the structure of the route initialization in the backend and how does it relate to the global server setup?",
+      "ground_truth_answer": "The global server is set up with Express and Socket.IO in , while the routes are initialized separately in  using . The router is defined independently but would typically be mounted onto the  instance from the index file to handle HTTP requests alongside the Socket.IO server.",
+      "generated_answer": "I couldn’t find any code in the repository that shows how the backend itself registers its HTTP routes.  \nThe only routing‑related snippets that were retrieved are for the front‑end, where the application uses **React Router’s `createMemoryRouter`** to set up client‑side navigation:\n\n```js\n// Example snippet from several files\nconst SERVER_PATH = import.meta.env.VITE_BACKEND_PATH\nconst router = createMemoryRouter(routerInstance, {\n  initialEntries: ['/dashboard']\n})\n```\n\n```js\n// Authentication routes\nconst router = createMemoryRouter(authRouter, {\n  initialEntries: ['/auth/login']\n})\nconst router = createMemoryRouter(authRouter, {\n  initialEntries: ['/auth/register']\n})\n```\n\nThese snippets show:\n\n* **`SERVER_PATH`** – a global constant that holds the base URL for the back‑end API. It pulls the value from the environment variable `VITE_BACKEND_PATH",
+      "evaluation": {
+        "correctness": {
+          "score": 0,
+          "reason": "The generated answer fails to mention the Express and Socket.IO server setup or the mounting of routers, which are essential parts of the ground‑truth explanation."
+        },
+        "faithfulness": {
+          "score": 0,
+          "reason": "The answer claims no backend route registration code was found, yet the retrieved code chunks contain several router definitions in the backend, disproving this claim."
+        },
+        "completeness": {
+          "score": 0,
+          "reason": "The answer omits all required information about the global server initialization, route files, and mounting process, leaving the question unanswered."
+        }
+      },
+      "scores": {
+        "correctness": 0,
+        "faithfulness": 0,
+        "completeness": 0
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 38,
+      "query": "What is the complete sequence of operations performed by the backend when a user updates a list's position, and how does the frontend dispatch the updated state?",
+      "ground_truth_answer": "The backend  function first shifts positions of other lists (decrementing if moving up, incrementing if moving down) using  with . It then performs a  to update the specific list. The frontend  dispatches an  action with the new position and includes the  from the original list in the response data.",
+      "generated_answer": "I couldn't find relevant information in the available repository context to answer that.",
+      "evaluation": {
+        "correctness": {
+          "score": 0,
+          "reason": "The generated answer does not provide any of the required details, whereas the ground‑truth answer explains the specific backend operations and frontend dispatch. Therefore it is not correct."
+        },
+        "faithfulness": {
+          "score": 0,
+          "reason": "The answer makes no factual statements, so it cannot be supported by any retrieved code chunks."
+        },
+        "completeness": {
+          "score": 0,
+          "reason": "The answer is empty of the necessary information (backend sequence and frontend dispatch), so it is incomplete."
+        }
+      },
+      "scores": {
+        "correctness": 0,
+        "faithfulness": 0,
+        "completeness": 0
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 39,
+      "query": "What happens if the frontend sends a  field that is shorter than 3 characters, and how does the backend middleware handle this error?",
+      "ground_truth_answer": "If the frontend sends a  shorter than 3 characters, the  schema will fail validation. The  detects this via , checks , and returns a  status with a JSON object containing the message \"Validation failed\" and the specific error details.",
+      "generated_answer": "When a frontend field that is required to be at least 3 characters long (for example the **title** or **description** in the `boardCreator` schema) is sent with a value shorter than three characters, Zod’s validation will fail.\n\n**What Zod reports**\n\nThe `boardCreator` schema is defined as:\n\n```ts\nconst boardCreator = z.object({\n    title: z.string().min(3, \"Title must be at least 3 characters long\"),\n    description: z.string().min(3, \"Description must be at least 3 characters long\"),\n    visibility: z.enum(['Public', 'Private']).default('Public'),\n});\n```\n\n(see the `boardCreator` definition in the retrieved context).  \nIf the `title` (or `description`) is `\"Hi\"` or any string with fewer than 3 characters, Zod will produce an error that contains the message *“Title must be at least 3 characters long”* (or the corresponding message for `description`).\n\n**How the backend handles it**\n\nThe backend uses the `updateUserValidationMiddleware` (shown in the context) to validate request bodies:\n\n```ts\nconst updateUserValidationMiddleware = (req: Request, res: Response, next: NextFunction) => {\n    const result = updateUserValidation.safeParse(req.body)\n\n    if (!result.success) {\n        return res.status(400).json({\n            message: \"Validation failed\",\n            errors: result.error.message\n        })\n    }\n\n    req.body = result.data\n    next()\n}\n```\n\n1. The middleware calls `safeParse` on the incoming `req.body`.  \n2. If the validation fails (e.g., a field is shorter than 3 characters), `result.success` is `false`.  \n3. The middleware immediately responds with **HTTP 400 Bad Request**, returning a JSON payload:\n\n```json\n{\n  \"message\": \"Validation failed\",\n  \"errors\": \"<Zod error message>\"\n}\n```\n\nThe `<Zod error message>` will include the specific text defined in the schema, such as *“Title must be at least 3 characters long”*.\n\nThus, any field that violates the minimum‑length rule triggers a 400 response from the middleware, preventing the request from reaching the route handler and providing the client with clear validation feedback.",
+      "evaluation": {
+        "correctness": {
+          "score": 2,
+          "reason": "The generated answer correctly explains that a field shorter than 3 characters causes the Zod schema to fail validation, and that the middleware returns a 400 response with a message and error details, matching the ground‑truth explanation."
+        },
+        "faithfulness": {
+          "score": 2,
+          "reason": "All claims in the generated answer are directly supported by the retrieved code chunks: the `boardCreator` schema uses `.min(3)` and the `updateUserValidationMiddleware` performs a `safeParse`, returning a 400 status with `message: \"Validation failed\"` and the error message."
+        },
+        "completeness": {
+          "score": 2,
+          "reason": "The answer covers all essential points required by the question—validation failure, middleware handling, and the response format—without omitting any critical information."
+        }
+      },
+      "scores": {
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": 40,
+      "query": "In the test file for the refresh token route, how is the mock for 'refereshToken' configured, and what specific request payload is sent to the '/api/users/refresh-token' endpoint?",
+      "ground_truth_answer": "The test mocks 'RefereshTokenModel' as 'mockRefreshTokenModel'. The request to '/api/users/refresh-token' is a POST that includes the 'refresh_token' cookie and sends a JSON body containing '{ user_id: \"1\" }'.",
+      "generated_answer": "**Mock configuration**\n\nIn the test file the `refereshToken` helper is turned into a Jest mock by simply casting it to a Jest mock type:\n\n```ts\n// In the test file\nconst mockRefereshToken = refereshToken as jest.Mock;\n```\n\n*(See the global‑variables snippet that contains this line.)*  \nNo explicit implementation is provided in the snippet, so the mock will use Jest’s default behaviour (returning `undefined` or the value you later set with `mockReturnValue` / `mockResolvedValue` if the test does so).\n\n**Request payload**\n\nThe tests send a POST request to the refresh‑token endpoint with the following JSON body:\n\n```ts\nconst res = await request(app)\n  .post('/api/users/refresh-token')\n  .send({\n    user_id: \"1\",\n  });\n```\n\n*(This payload is shown in the global‑variables snippet that lists the request.)",
+      "evaluation": {
+        "correctness": {
+          "score": 1,
+          "reason": "The answer correctly describes the mock configuration as casting refereshToken to jest.Mock, which matches the retrieved code. However, it omits the fact that the request includes a 'refresh_token' cookie, so it is not fully correct."
+        },
+        "faithfulness": {
+          "score": 1,
+          "reason": "The mock configuration claim is supported by the code chunk. The request payload claim is partially unsupported because the answer fails to mention the cookie present in the test code."
+        },
+        "completeness": {
+          "score": 1,
+          "reason": "The answer includes the mock setup but misses the cookie part of the request payload, so it is incomplete relative to the ground-truth information."
+        }
+      },
+      "scores": {
+        "correctness": 1,
+        "faithfulness": 1,
+        "completeness": 1
+      },
+      "top_chunk": 8,
+      "evaluation_model": "groq/openai/gpt-oss-20b"
+    },
+    {
+      "dataset_index": null,
+      "query": "Trace the full lifecycle of a refresh token from initial creation during login to its potential invalidation during logout, including the specific database operations performed in each step.",
+      "ground_truth_answer": "During login, the system performs an upsert operation on the RefereshTokenModel to create or update the token for the user. During token refresh, the system finds the existing token, validates its expiration, updates it with a new token and expiration time, and returns the user data. During logout, the system performs a deleteOne operation on the RefereshTokenModel to permanently remove the token associated with the user_id.",
+      "generated_answer": "",
+      "evaluation": {
+        "correctness": {
+          "score": 0,
+          "reason": "No ground-truth answer or specific question provided. The 'GENERATED ANSWER:' section is empty with no actual content evaluated against a reference."
+        },
+        "faithfulness": {
+          "score": 1,
+          "reason": "Evidence chunks are factual - test file shows updateUser routes and mock setup; service file has logout function deleting refresh tokens from UserModel; validation file defines task update schema. These claims match the retrieved code accurately within their respective files."
+        },
+        "completeness": {
+          "score": 0,
+          "reason": "No output answer provided to evaluate completeness against ground truth requirements or question asked about which chunk is best matched or related."
+        }
+      },
+      "scores": {
+        "correctness": 0,
+        "faithfulness": 1,
+        "completeness": 0
+      },
+      "top_chunk": 20,
+      "evaluation_model": "ollama/qwen3.5:4b"
+    }
+  ]
+}
