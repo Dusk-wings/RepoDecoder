@@ -25,7 +25,7 @@ async def start_workflow(
     body: Annotated[WorkSpaceInput, Body()],
     db: db_depends,
 ):
-    response = await start_ingest_service(github_url=body.github_url, user=user, db=db)
+    response = await start_ingest_service(github_url=body.github_url)
     
     if response.get("success") == True:
         return {
