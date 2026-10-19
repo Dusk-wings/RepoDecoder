@@ -61,7 +61,9 @@ class Retrival:
             )
             raise
 
-    async def _retrive_by_vector_distance(self, embeded_query, repo_id: UUID):
+    async def _retrive_by_vector_distance(
+        self, embeded_query, repo_id: UUID, limit: int = 20
+    ):
         distance = Embedding.vector.cosine_distance(embeded_query).label("distance")
         stmt = (
             select(
@@ -75,7 +77,7 @@ class Retrival:
             .join(RepoFile, RepoFile.file_id == Embedding.file_id)
             .where(Embedding.repo_id == repo_id)
             .order_by(distance)
-            .limit(20)
+            .limit(limit)
         )
 
         try:
@@ -88,7 +90,9 @@ class Retrival:
             )
             raise
 
-    async def _retrive_by_trigram_similarity(self, query: str, repo_id: UUID):
+    async def _retrive_by_trigram_similarity(
+        self, query: str, repo_id: UUID, limit: int = 20
+    ):
         lexical_score = func.similarity(Embedding.chunk_str, query).label("similarity")
         stmt = (
             select(
@@ -105,7 +109,7 @@ class Retrival:
                 Embedding.repo_id == repo_id,
             )  # Filter out completely irrelevant text
             .order_by(lexical_score.desc())
-            .limit(20)
+            .limit(limit)
         )
 
         try:
@@ -118,7 +122,7 @@ class Retrival:
             )
             raise
 
-    async def _retrive_by_fts(self, query: str, repo_id: UUID):
+    async def _retrive_by_fts(self, query: str, repo_id: UUID, limit: int = 20):
         ts_query = func.plainto_tsquery("english", query)
         fts_score = func.ts_rank(Embedding.fts_vector, ts_query).label("fts_score")
 
@@ -138,7 +142,7 @@ class Retrival:
                 # Embedding.repo_id == repo_id,
             )
             .order_by(fts_score.desc())
-            .limit(20)
+            .limit(limit)
         )
         print(stmt)
 
@@ -157,6 +161,8 @@ class Retrival:
         query: str,
         history: list[dict] | None = None,
         model: str = "groq/qwen/qwen3.8-27b",
+        api_key: str | None = None,
+        base_url: str | None = None,
     ):
 
         generator = Generator()
@@ -233,7 +239,13 @@ class Retrival:
             {"role": "user", "content": user_message},
         ]
 
-        new_prompt = await generator.LLM(model=model, messages=messages, max_tokens=400)
+        new_prompt = await generator.LLM(
+            model=model,
+            messages=messages,
+            max_tokens=400,
+            api_key=api_key,
+            base_url=base_url,
+        )
         return new_prompt
 
     async def retrive(
@@ -243,15 +255,15 @@ class Retrival:
             searcher = list(embedded_query)[0].tolist()
 
             vector_chunks = await self._retrive_by_vector_distance(
-                embeded_query=searcher, repo_id=repo_id
+                embeded_query=searcher, repo_id=repo_id, limit=top_chunk
             )
             lexical_chunks = await self._retrive_by_trigram_similarity(
-                query=query, repo_id=repo_id
+                query=query, repo_id=repo_id, limit=top_chunk
             )
-            fts_chunks = await self._retrive_by_fts(query=query, repo_id=repo_id)
+            # fts_chunks = await self._retrive_by_fts(query=query, repo_id=repo_id, limit=top_chunk)
 
             top_chunks = self._merge_results_rrf_multi(
-                result_lists=[vector_chunks, lexical_chunks, fts_chunks],
+                result_lists=[vector_chunks, lexical_chunks],
                 k=60,
                 id_key="embed_id",
             )
