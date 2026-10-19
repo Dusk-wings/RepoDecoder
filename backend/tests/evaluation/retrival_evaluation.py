@@ -57,13 +57,14 @@ async def retrival(query: str, top_k: int):
         content = rewriten_query.get("content", None)
         if content:
             print(content)
-            embedded_query = await asyncio.to_thread(lambda: embedder.embed(content))
+            con = str(content)
+            embedded_query = await asyncio.to_thread(lambda: embedder.embed(con))
             searcher = list(embedded_query)[0].tolist()
             vec_ai = await retriver._retrive_by_vector_distance(
                 embeded_query=searcher, repo_id=REPO_ID
             )
             trg_ai = await retriver._retrive_by_trigram_similarity(
-              query=content, repo_id=REPO_ID
+              query=con, repo_id=REPO_ID
              )
 
             rrf_array.append(vec_ai)
