@@ -20,6 +20,7 @@ dependencies = [
 dev = [
     "alembic>=1.20.0",
     "asyncpg>=0.31.0",
+    "chonkie[code]>=1.7.0",
     "docling>=2.122.0",
     "ipykernel>=7.3.0",
     "mammoth>=1.12.1",
