@@ -1,13 +1,10 @@
 import httpx
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.exceptions import HTTPException
-from fastapi import status
+from app.errors.github_error import GitHubResponseError, GitHubConnectionError
 
 from app.core.config import env_config
-from app.schemas.user import UserDetails
 
 
-async def start_ingest_service(github_url: str, user: UserDetails, db: AsyncSession) -> dict:
+async def start_ingest_service(github_url: str) -> dict:
     try:
         github_user = env_config.GITHUB_USER
         github_repo = env_config.GITHUB_REPO
@@ -28,18 +25,23 @@ async def start_ingest_service(github_url: str, user: UserDetails, db: AsyncSess
             response = await client.post(url=url, json=payload, headers=headers)
 
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=exc.response.status_code,
-            detail=(
+        try:
+            detail = (
                 exc.response.json()
                 if exc.response.content
-                else "FAILED TO TRIGGER GITHUB ACTIONS"
-            ),
+                else "FAILED TO TRIGGER REQUEST TO GITHUB"
+            )
+        except ValueError:
+            detail = "FAILED TO TRIGGER REQUEST TO GITHUB"
+
+        raise GitHubResponseError(
+            status_code=exc.response.status_code,
+            message=detail,
         )
     except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"GITHUB API CONNECTION ERROR: {str(exc)}",
+        # status 503
+        raise GitHubConnectionError(
+            f"UNABLE TO CONNECT TO THE GITHUB, SERVICE UNAVAILABLE, SERVER ERROR",
         )
 
     return {
