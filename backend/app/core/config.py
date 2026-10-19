@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     GITHUB_TOKEN: str | None = None
     REPO_ID: str | None = None
     EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
+    EVALUATION_API_KEY: str | None = None
     
     model_config = SettingsConfigDict(
         env_file=ENV_FILE_PATH if ENV_FILE_PATH.exists() else None,
