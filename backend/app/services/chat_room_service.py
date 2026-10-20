@@ -1,8 +1,8 @@
 from uuid import UUID
 from typing import NoReturn
 from datetime import datetime, timezone
+import logging
 
-from fastapi import HTTPException, status
 from random import random
 
 from sqlalchemy.future import select
@@ -14,6 +14,12 @@ from app.models.chats import Chats
 from app.models.user_repo import UserRepo
 from app.models.conversation import Conversation
 from app.rag.generator.generator import Generator
+
+from app.errors.not_found_error import NotFoundError
+from app.errors.http_error import HTTPError
+from app.errors.validation_error import ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class ChatRoom:
@@ -75,9 +81,8 @@ class ChatRoom:
 
             new_name = name.strip()[:150]
             if not new_name:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="CHAT NAME CAN NOT BE EMPTY OR WHITESPACE ONLY",
+                raise ValidationError(
+                    "CHAT NAME CAN NOT BE EMPTY OR WHITESPACE ONLY",
                 )
 
             stmt = (
@@ -90,9 +95,8 @@ class ChatRoom:
             chat = result.mappings().one_or_none()
 
             if not chat:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="CHAT NOT FOUND, NAME OF THE CHAT IS NOT MODIFIED",
+                raise NotFoundError(
+                    "CHAT NOT FOUND, NAME OF THE CHAT IS NOT MODIFIED",
                 )
 
             await self.db.commit()
@@ -110,10 +114,7 @@ class ChatRoom:
                 )
             )
             if user_repo is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="REPOSITORY IS NOT ASSOCIATED WITH USER",
-                )
+                raise NotFoundError("REPOSITORY IS NOT ASSOCIATED WITH USER")
 
             name = first_msg.strip()[:150]
             if not name:
@@ -144,10 +145,7 @@ class ChatRoom:
             )
 
             if room is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="CHAT ROOM NOT FOUND",
-                )
+                raise NotFoundError("CHAT ROOM NOT FOUND OR NOT OWNED BY USER")
             return room
         except SQLAlchemyError as exc:
             await self._handle_database_error(exc)
@@ -178,22 +176,22 @@ class ChatRoom:
                 model="groq/qwen/qwen3.8-27b", messages=messages, max_tokens=200
             )
         except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
+            raise HTTPError(
+                status=502,
                 detail="UNABLE TO GENERATE A CHAT ROOM NAME",
             ) from exc
 
         if result.get("type") != "success":
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
+            raise HTTPError(
+                status=502,
                 detail="UNABLE TO GENERATE A CHAT ROOM NAME",
             )
 
         content = getattr(result.get("content"), "content", None)
         if not isinstance(content, str) or not content.strip():
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="CHAT ROOM NAME GENERATION RETURNED AN INVALID RESPONSE",
+            raise HTTPError(
+                status=502,
+                detail="UNABLE TO GENERATE A CHAT ROOM NAME",
             )
         return content.strip()[:150]
 
@@ -210,8 +208,11 @@ class ChatRoom:
 
             return chat
 
-        except:
+        except NotFoundError:
             raise
+        except Exception as e:
+            logger.exception("AN ERROR OCCURRED WHILE REWRITING CHAT TITLE, %s", e)
+            raise HTTPError(status=500, detail="INTERNAL SERVER ERROR")
 
     async def _handle_database_error(self, error: SQLAlchemyError) -> NoReturn:
         await self.db.rollback()
