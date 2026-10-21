@@ -1,5 +1,14 @@
 from app.core.db import Base
-from sqlalchemy import ForeignKey, UUID, Text, DateTime, func, Enum as SqlEnum
+from sqlalchemy import (
+    ForeignKey,
+    UUID,
+    Text,
+    DateTime,
+    func,
+    Enum as SqlEnum,
+    JSON,
+    Integer,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 from datetime import datetime
@@ -32,7 +41,10 @@ class Conversation(Base):
 
     query: Mapped[str] = mapped_column(Text, nullable=False)
     response: Mapped[str] = mapped_column(Text, nullable=True)
+    tool: Mapped[list] = mapped_column(JSON, nullable=True)
     models: Mapped[str] = mapped_column(Text, nullable=False)
+
+    chunks_used: Mapped[int] = mapped_column(Integer, default=8)
 
     status: Mapped[str] = mapped_column(SqlEnum(Status), default=Status.NONE)
 
