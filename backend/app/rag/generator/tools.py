@@ -4,7 +4,7 @@ from app.core.config import env_config
 from app.rag.utils.spread_sheet_analyzer import SpreadSheetAnalyzer
 from app.utils.storage import BucketStorage
 from app.errors.serverError import ServerError
-from backend.app.errors.not_found_error import NotFoundError
+from app.errors.not_found_error import NotFoundError
 
 from app.models.bucket_file import BucketType, BucketFileType
 from app.models.repository import Repository
@@ -134,7 +134,7 @@ class Tools(SpreadSheetAnalyzer):
                 return {
                     "status": "success",
                     "message": "DETAILS FETCHED",
-                    "data": [item.model_dump() for item in response],
+                    "data": json.dumps([item.model_dump() for item in response]),
                 }
 
         except Exception as e:
@@ -245,7 +245,10 @@ class Tools(SpreadSheetAnalyzer):
             "function": {
                 "name": "get_dep_version",
                 "description": (
-                    "Find dependency details and versions in the current repository."
+                    "Look up the requested dependency's version used in the project or the repository. "
+                    "Return the dependency name, version, dependency type (such as "
+                    "production or development), the file path where the version is defined, and "
+                    "the relevant language (such as JavaScript or TypeScript)."
                 ),
                 "parameters": {
                     "type": "object",
@@ -276,13 +279,16 @@ class Tools(SpreadSheetAnalyzer):
     ):
         try:
             arguments = json.loads(function_arguments)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.exception(
+                "[USE-TOOL] UNABLE TO GET THE ARGUMENTS OF TOOL CALL, ERRROR %s", e
+            )
             return {
                 "status": "error",
                 "message": "Invalid tool arguments",
                 "data": None,
             }
-
+        
         if tool_name == "get_dep_version":
             dep_name = arguments.get("dep_name")
             if not dep_name:
