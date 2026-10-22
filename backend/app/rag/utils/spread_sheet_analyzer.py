@@ -19,10 +19,10 @@ from app.models.repo_file import RepoFile
 from app.core.config import env_config
 from app.core.db import AsyncSessionLocal
 
-from backend.app.errors.validation_error import ValidationError
+from app.errors.validation_error import ValidationError
 from app.errors.networkError import NetworkError
 from app.errors.serverError import ServerError
-from backend.app.errors.not_found_error import NotFoundError
+from app.errors.not_found_error import NotFoundError
 
 from sqlalchemy.future import select
 
