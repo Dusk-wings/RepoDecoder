@@ -1,11 +1,12 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
+from typing import Any
 
 
 class RepoDepDetails(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    details: str
+    details: Any
 
 
 class RepoDetails(BaseModel):
