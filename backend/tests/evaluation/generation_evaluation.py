@@ -28,7 +28,7 @@ REPO_ID = UUID(env_config.REPO_ID or "")
 INPUT_FILE_PATH = (
     "/home/user/Documents/Project_5/backend/tests/evaluation/golden_dataset_syn.json"
 )
-OUTPUT_FILE_PATH = "/home/user/Documents/Project_5/backend/tests/evaluation/reports/generation_evaluation_report_3.json"
+OUTPUT_FILE_PATH = "/home/user/Documents/Project_5/backend/tests/evaluation/reports/generation_evaluation_report_resample.json"
 
 GENERATION_MODEL = "google/gemini-3.5-flash-lite"
 QWERY_REWRITE_MODEL = "groq/openai/gpt-oss-120b"
@@ -171,7 +171,11 @@ async def generate_the_content(
         data_type = data["type"]
         if data_type == "token":
             generated_content.append(data.get("content"))
-        if data_type == "error":
+        #     print(data)
+        # elif data_type == "tool_call":
+        #     print(data)
+
+        elif data_type == "error":
             raise GenerationError(
                 message=data.get("content", "Generation failed."),
                 status_code=data.get("status_code"),
