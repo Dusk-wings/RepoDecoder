@@ -2,7 +2,7 @@ import openai
 from supabase import AsyncClient
 import json
 from uuid import UUID
-from typing import Any, AsyncGenerator, Optional
+from typing import Any, AsyncGenerator
 import logging
 import asyncio
 from textwrap import dedent
@@ -210,12 +210,22 @@ class Generator:
         if not messages:
             raise ValueError("[LLM-GENERATOR] MESSAGES ARE REQUIRED")
 
-        tools = Tools(bucket_client)
-        provider, provided_model = model.split("/", 1)
-        client = self.get_chat_client(
-            provider=provider, api_key=api_key, base_url=base_url
-        )
-        tool_schema = tools.get_tool_defination()
+        try:
+            tools = Tools(bucket_client)
+            provider, provided_model = model.split("/", 1)
+            client = self.get_chat_client(
+                provider=provider, api_key=api_key, base_url=base_url
+            )
+            tool_schema = tools.get_tool_defination()
+        except Exception:
+            logger.exception("[LLM-GENERATOR] FAILED TO INITIALIZE GENERATION")
+            yield {
+                "type": "error",
+                "status": "unexpected_error",
+                "status_code": 500,
+                "content": "An unexpected generation error occurred.",
+            }
+            return
 
         for iteration in range(max_iter):
             # After the finish or the iteration or after the first call or at the start the user can cancel the generation
@@ -310,7 +320,7 @@ class Generator:
                 raise
 
             except openai.RateLimitError as e:
-                logger.exception("[LLM-GENERATOR]: %s", e)
+                logger.exception("[LLM-GENERATOR] RATE LIMIT EXCEEDED")
                 yield {
                     "type": "error",
                     "status": "rate_limited",
@@ -320,7 +330,7 @@ class Generator:
                 return
 
             except openai.APIError as e:
-                logger.exception(f"[LLM-GENERATOR]: {e}")
+                logger.exception("[LLM-GENERATOR] UPSTREAM API ERROR")
                 yield {
                     "type": "error",
                     "status": "upstream_error",
@@ -330,7 +340,7 @@ class Generator:
                 return
 
             except Exception as e:
-                logger.exception(f"[LLM-GENERATOR]: {e}")
+                logger.exception("[LLM-GENERATOR] UNEXPECTED STREAMING ERROR")
                 yield {
                     "type": "error",
                     "status": "unexpected_error",
@@ -387,10 +397,7 @@ class Generator:
             for tc in assistant_message["tool_calls"]:
 
                 function_name = tc["function"]["name"]
-                try:
-                    function_args = tc["function"]["arguments"]
-                except:
-                    function_args = json.dumps({})
+                function_args = tc["function"]["arguments"]
 
                 yield {
                     "type": "tool_call",
@@ -400,22 +407,25 @@ class Generator:
                     "argument": str(function_args),
                 }
 
-                # Suppose the user canceled after yield so don't need to run the heavy computation
-                if stop_event.is_set():
-                    yield {
-                        "type": "end",
-                        "status": "cancelled",
-                        "status_code": 499,
-                        "content": None,
-                    }
-                    return
-
                 try:
+                    # Suppose the user canceled after yield so don't need to run the heavy computation
+                    if stop_event.is_set():
+                        yield {
+                            "type": "end",
+                            "status": "cancelled",
+                            "status_code": 499,
+                            "content": None,
+                        }
+                        return
+
                     tool_result = await tools.use_tool(
                         repo_id=repo_id,
                         tool_name=function_name,
                         function_arguments=function_args,
                     )
+                except asyncio.CancelledError:
+                    logger.info("[LLM-GENERATOR] GENERATION IS CANCELED")
+                    raise
                 except Exception as e:
                     logger.exception(
                         "[LLM-GENERATOR] LLM TOOL CALL FAILED, FUNCTION NAME : %s, ERROR: %s",
@@ -432,7 +442,7 @@ class Generator:
                     {
                         "role": "tool",
                         "tool_call_id": tc["id"],
-                        "content": json.dumps(tool_result),
+                        "content": json.dumps(tool_result, default=str),
                     }
                 )
 
