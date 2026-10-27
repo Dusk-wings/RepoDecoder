@@ -8,6 +8,7 @@ from sqlalchemy import (
     Enum as SqlEnum,
     JSON,
     Integer,
+    Boolean
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
@@ -41,7 +42,9 @@ class Conversation(Base):
 
     query: Mapped[str] = mapped_column(Text, nullable=False)
     response: Mapped[str] = mapped_column(Text, nullable=True)
-    tool: Mapped[list] = mapped_column(JSON, nullable=True)
+    tool: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
+    is_deleted :Mapped[bool] = mapped_column(Boolean, default=False)
     models: Mapped[str] = mapped_column(Text, nullable=False)
 
     chunks_used: Mapped[int] = mapped_column(Integer, default=8)
