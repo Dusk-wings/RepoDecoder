@@ -3,7 +3,7 @@ from app.core.config import env_config
 
 from app.rag.utils.spread_sheet_analyzer import SpreadSheetAnalyzer
 from app.utils.storage import BucketStorage
-from app.errors.serverError import ServerError
+from app.errors.server_error import ServerError
 from app.errors.not_found_error import NotFoundError
 
 from app.models.bucket_file import BucketType, BucketFileType

@@ -21,7 +21,7 @@ from app.core.db import AsyncSessionLocal
 
 from app.errors.validation_error import ValidationError
 from app.errors.networkError import NetworkError
-from app.errors.serverError import ServerError
+from app.errors.server_error import ServerError
 from app.errors.not_found_error import NotFoundError
 
 from sqlalchemy.future import select

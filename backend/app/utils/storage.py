@@ -12,7 +12,7 @@ from app.core.config import env_config
 from app.core.db import AsyncSessionLocal
 from app.models.bucket_file import BucketFile, BucketFileType, BucketType
 
-from app.errors.serverError import ServerError
+from app.errors.server_error import ServerError
 
 # from app.core.supabase import supabase_client
 
