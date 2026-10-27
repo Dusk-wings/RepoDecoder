@@ -1,5 +1,5 @@
 from app.core.db import Base
-from sqlalchemy import ForeignKey, UUID, func, DateTime, UniqueConstraint
+from sqlalchemy import ForeignKey, Boolean, UUID, func, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 from datetime import datetime
@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 
 class UserRepo(Base):
     __tablename__ = "user_repo"
-    __table_args__ = (UniqueConstraint("repo_id", "user_id", name="unique_user_repo"),)
+    __table_args__ = (
+        UniqueConstraint("repo_id", "user_id", "is_deleted", name="unique_user_repo"),
+    )
 
     user_repo_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -24,6 +26,7 @@ class UserRepo(Base):
         ForeignKey("auth.users.id", ondelete="CASCADE"),
         nullable=False,
     )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     repo_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
