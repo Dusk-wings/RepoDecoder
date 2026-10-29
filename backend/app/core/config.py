@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     REPO_ID: str | None = None
     EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
     EVALUATION_API_KEY: str | None = None
+
+    @property
+    def ISSUER_URL(self) -> str:
+        return f"{self.SUPABASE_URL}/auth/v1"
+
+    @property
+    def JWKS_ISSUER_URL(self) -> str:
+        return f"{self.ISSUER_URL}/.well-known/jwks.json"
     
     model_config = SettingsConfigDict(
         env_file=ENV_FILE_PATH if ENV_FILE_PATH.exists() else None,
