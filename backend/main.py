@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from app.core.config import env_config
 from app.core.supabase import get_supabase_async_client, close_supabase_async_client
 
-from app.router.workflow_router import router as workflow_router
+from app.api.router.workflow_router import router as workflow_router
 
 
 @asynccontextmanager
