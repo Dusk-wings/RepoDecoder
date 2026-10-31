@@ -12,9 +12,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v6
 
-      - name: Set GITHUB_URL variable
+      - name: Set GITHUB_URL and USER_ID variable
         run: |
           echo "GITHUB_URL=${{ github.event.client_payload.github_url }}" >> $GITHUB_ENV
+          echo "USER_ID=${{ github.event.client_payload.user_id }}" >> $GITHUB_ENV
 
       - name: Install UV
         uses: astral-sh/setup-uv@v5
