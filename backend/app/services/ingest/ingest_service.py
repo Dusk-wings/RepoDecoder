@@ -25,6 +25,8 @@ from app.rag.utils.file_validator import FileInspector
 from app.services.ingest.github_client import GithubClient
 
 from app.models.repo_file import FileProcess
+from app.models.repository import RepoStatus
+
 from app.core.config import env_config
 
 import asyncio
@@ -84,7 +86,7 @@ MODEL_NAME = "qwen/qwen3.8-27b"
 
 
 class Ingest(GithubClient):
-    def __init__(self, github_url: str) -> None:
+    def __init__(self, github_url: str, user_id: uuid.UUID) -> None:
         super().__init__(github_url=github_url)
 
         self.parser = Parser()
@@ -97,6 +99,8 @@ class Ingest(GithubClient):
         self.pdf_parser = PdfParser()
 
         self.embedder = Embedder(model_name=env_config.EMBEDDING_MODEL_NAME)
+
+        self.user_id = user_id
 
     def _parse_tabular_data_to_str(self, data: dict) -> str:
         try:
@@ -777,8 +781,15 @@ class Ingest(GithubClient):
         return hasher.hexdigest()
 
     async def ingest_repo(self):
+        completed = True
         try:
+            logger.info("[INGEST-REPO] FETCHING THE REPO DETAILS")
             does_exist = await self._fetch_github_repo()
+
+            # logger.info("[INGEST-REPO] ASSOCIATING USER AND REPO")
+            await self.update_ingestion_status(user_id=self.user_id, value=True)
+            await self.save_repo_user_details(user_id=self.user_id)
+
             logger.info(
                 "[INGEST-REPO] STARTING THE INGEST PROCESS FOR REPO: %s",
                 self.github_url,
@@ -867,7 +878,16 @@ class Ingest(GithubClient):
             logger.exception(
                 "[INGEST-REPO] UNABLE TO INGEST THE REPO %s: %s", self.github_url, e
             )
+            completed = False
             raise
 
         finally:
-            self._remove_github_repo()
+            try:
+                await self.update_ingestion_status(user_id=self.user_id, value=False)
+                await self.update_repo_status(
+                    status=RepoStatus.completed if completed else RepoStatus.failed
+                )
+                
+                self._remove_github_repo()
+            except Exception as e:
+                logger.info("[INGEST-REPO] CLEARANCE FAILED")

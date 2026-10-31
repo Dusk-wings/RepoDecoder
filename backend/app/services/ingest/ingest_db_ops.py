@@ -10,6 +10,8 @@ from app.models.dependencies import Dependencies
 from app.models.embedding import Embedding
 from app.models.repository import Repository, RepoStatus
 from app.models.bucket_file import BucketFileType
+from app.models.user_repo import UserRepo
+from app.models.user_profile import UserProfile
 
 from app.core.db import AsyncSessionLocal
 from app.core.config import env_config
@@ -198,11 +200,7 @@ class IngestDbOps:
                         .where(RepoFile.file_id.in_(file_ids))
                         .values(status=FileProcess.success)
                     )
-                await db.execute(
-                    update(Repository)
-                    .where(Repository.repo_id == self.repo_id)
-                    .values(status=RepoStatus.completed)
-                )
+
                 await db.commit()
             except Exception:
                 await db.rollback()
@@ -296,6 +294,54 @@ class IngestDbOps:
                 await db.rollback()
                 raise
 
+    async def save_repo_user_details(self, user_id: uuid.UUID):
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.scalar(
+                    select(UserRepo.user_repo_id).where(
+                        UserRepo.user_id == user_id, UserRepo.repo_id == self.repo_id
+                    )
+                )
+
+                if not result:
+                    try:
+                        stmt = insert(UserRepo).values(
+                            user_id=user_id, repo_id=self.repo_id
+                        )
+                        await db.execute(stmt)
+                        await db.commit()
+                    except Exception:
+                        logger.exception(
+                            "[INJEST-DB-OPS-SAVE-REPO-USER] FAILED TO SAVE DETAILS"
+                        )
+                        await db.rollback()
+                        raise
+
+        except Exception:
+            logger.exception(
+                "[INJEST-DB-OPS-SAVE-REPO-USER] OPERATION FOR SAVING USER AND REPO ASSOCATION FAILED"
+            )
+            raise
+
+    async def update_ingestion_status(self, user_id: uuid.UUID, value: bool):
+        stmt = (
+            update(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .values(is_ingesting=value)
+        )
+        async with AsyncSessionLocal() as db:
+            try:
+                await db.execute(stmt)
+                await db.commit()
+
+            except Exception as e:
+                logger.exception(
+                    "[INJEST-DB-OPS-UPDATE-INGESTION-STATUS] STATUS UPDATION FAILED, ERROR: %s",
+                    e,
+                )
+                await db.rollback()
+                raise
+
     async def get_repo_detail(self, github_url: str):
         try:
             async with AsyncSessionLocal() as db:
@@ -347,3 +393,17 @@ class IngestDbOps:
                 "[ADD-FILE-BUCKET] FAILED TO ADD FILE TO THE BUCKET, ERROR: %s", e
             )
             raise
+
+    async def update_repo_status(self, status: RepoStatus):
+        async with AsyncSessionLocal() as db:
+            try:
+                await db.execute(
+                    update(Repository)
+                    .where(Repository.repo_id == self.repo_id)
+                    .values(status=status)
+                )
+                await db.commit()
+            except Exception as e:
+                logger.exception("[INGEST-DB-REPO-STATUS-UPDATE] FAILED TO UPDATE THE REPO STATUS")
+                await db.rollback()
+                raise
