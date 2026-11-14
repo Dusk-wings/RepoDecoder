@@ -9,6 +9,7 @@ from textwrap import dedent
 
 from app.core.config import env_config
 from app.rag.generator.tools import Tools
+from app.rag.generator.fallback_calc import ModelFallbackCalculator
 
 MAX_ITER = 5
 
@@ -23,11 +24,14 @@ class Generator:
         self.groq_base_url = "https://api.groq.com/openai/v1"
         self.ollam_base_url = "http://localhost:11434/v1"
         self.models = [
+            "google/gemini-3.6-flash",
+            "google/gemini-3.8-flash",
             "google/gemini-3.5-flash-lite",
-            "groq/openai/gpt-oss-120b",
+            "google/gemini-3.1-flash-lite",
+            "google/gemini-2.5-flash-lite",
             "groq/openai/gpt-oss-20b",
+            "groq/openai/gpt-oss-120b",
             "groq/qwen/qwen3.8-27b",
-            "ollama/qwen3.5:4b",
         ]
 
     def list_models(self):
@@ -161,12 +165,24 @@ class Generator:
 
         except openai.RateLimitError as e:
             logger.exception(f"[LLM]: {e}")
-            return {
+            status_code = getattr(e, "status_code", None) or 429
+            
+            data = {
                 "type": "error",
                 "status": "rate_limited",
-                "status_code": getattr(e, "status_code", None) or 429,
+                "status_code": status_code,
                 "content": "Rate limit exceeded. Please try again in a moment.",
             }
+
+            if status_code == 429:
+                retry_details = ModelFallbackCalculator.get_retry_details(e)
+                wait_seconds = retry_details.get("wait_seconds", 600.0)
+                logger.info(
+                    f"[LLM-GENERATOR] RATE LIMIT EXCEEDED FOR MODEL {model}, WAITING FOR {wait_seconds} SECONDS"
+                )
+                data["wait_seconds"] = wait_seconds
+
+            return data
 
         except openai.APIError as e:
             logger.exception(f"[LLM]: {e}")
@@ -321,12 +337,25 @@ class Generator:
 
             except openai.RateLimitError as e:
                 logger.exception("[LLM-GENERATOR] RATE LIMIT EXCEEDED")
-                yield {
+                status_code = getattr(e, "status_code", None) or 429
+
+                data = {
                     "type": "error",
                     "status": "rate_limited",
-                    "status_code": getattr(e, "status_code", None) or 429,
+                    "status_code": status_code,
                     "content": "Rate limit exceeded. Please try again in a moment.",
                 }
+
+                if status_code == 429:
+                    retry_details = ModelFallbackCalculator.get_retry_details(e)
+                    wait_seconds = retry_details.get("wait_seconds", 600.0)
+                    logger.info(
+                        f"[LLM-GENERATOR] RATE LIMIT EXCEEDED FOR MODEL {model}, WAITING FOR {wait_seconds} SECONDS"
+                    )
+                    data["wait_seconds"] = wait_seconds
+
+                yield data
+
                 return
 
             except openai.APIError as e:
