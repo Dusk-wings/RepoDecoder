@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
     EVALUATION_API_KEY: str | None = None
 
+    REDIS_URL: str | None = None
+
     @property
     def ISSUER_URL(self) -> str:
         return f"{self.SUPABASE_URL}/auth/v1"
