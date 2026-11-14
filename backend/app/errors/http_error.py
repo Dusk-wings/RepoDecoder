@@ -1,5 +1,5 @@
 class HTTPError(Exception):
-    def __init__(self, status: int, detail: str) -> None:
+    def __init__(self, status: int, message: str) -> None:
         self.status = status
-        self.detail = detail
-        super().__init__(detail)
+        self.message = message
+        super().__init__(message)

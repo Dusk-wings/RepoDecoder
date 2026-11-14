@@ -14,6 +14,7 @@ class GitHubResponseError(GitHubError):
     ) -> None:
         self.status_code = status_code
         self.upstream_status = upstream_status
+        self.message = message
         super().__init__(message)
 
 
