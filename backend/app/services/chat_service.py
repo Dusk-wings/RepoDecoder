@@ -4,12 +4,16 @@ import logging
 from collections.abc import Iterable, Mapping
 from typing import Any, AsyncGenerator
 from uuid import UUID
+import tiktoken
 
 from sqlalchemy.future import select
-from sqlalchemy import insert, update
+from sqlalchemy import insert, update, literal
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from supabase import AsyncClient
+from redis.asyncio import Redis
 
 from app.rag.generator.generator import Generator
 from app.rag.retrival.retrival import Retrival
@@ -27,11 +31,16 @@ from app.core.config import env_config
 from app.errors.generation_error import GenerationError
 from app.errors.server_error import ServerError
 from app.errors.validation_error import ValidationError
+from app.errors.not_found_error import NotFoundError
+from app.errors.http_error import HTTPError
+
+from app.services.model_fallback_service import ModelFallbackService, ModelType
+from app.utils.rate_limiter import TokenBucketRateLimiting
 
 logger = logging.getLogger(__name__)
 
 
-class Chat:
+class ChatService:
     def __init__(
         self,
         db: AsyncSession,
@@ -39,6 +48,8 @@ class Chat:
         embedder: Embedder,
         retriver: Retrival,
         generator: Generator,
+        tokenizer: dict[str, tiktoken.Encoding],
+        redis: Redis,
     ) -> None:
         self.bucket_client = bucket_client
         self.db = db
@@ -46,18 +57,30 @@ class Chat:
         self.retriver = retriver
         self.generator = generator
 
+        self.fallback = ModelFallbackService(redis=redis, generator=generator)
+        self.rate_limiter = TokenBucketRateLimiting(
+            redis_client=redis, tokenizer=tokenizer
+        )
+
     async def save_chat_to_db(
-        self, query: str, response: str, model: str, chat_id: UUID
-    ) -> UUID:
+        self, query: str, response: str, model: str, chat_id: UUID, user_id: UUID
+    ) -> tuple[UUID, UUID]:
+
+        owns_chat = (
+            select(1)
+            .select_from(Chats)
+            .join(UserRepo, UserRepo.user_repo_id == Chats.user_repo_id)
+            .where(UserRepo.user_id == user_id, Chats.chat_id == chat_id)
+            .exists()
+        )
+
+        source = select(
+            literal(chat_id), literal(query), literal(response), literal(model)
+        ).where(owns_chat)
 
         stmt = (
             insert(Conversation)
-            .values(
-                chat_id=chat_id,
-                query=query,
-                response=response,
-                models=model,
-            )
+            .from_select(["chat_id", "query", "response", "model"], source)
             .returning(Conversation.conversation_id)
         )
 
@@ -65,57 +88,100 @@ class Chat:
             conversation_id = await self.db.scalar(stmt)
             if conversation_id is None:
                 raise ServerError("FAILED TO SAVE THE CONVERSATION")
-            return conversation_id
+
+            repo_id = await self.db.scalar(
+                select(UserRepo.repo_id)
+                .select_from(Conversation)
+                .join(Chats, Chats.chat_id == Conversation.chat_id)
+                .join(UserRepo, UserRepo.user_repo_id == Chats.user_repo_id)
+                .where(Conversation.conversation_id == conversation_id)
+            )
+
+            if not repo_id:
+                raise ServerError("FAILED TO RETRIEVE REPO ID FOR THE CONVERSATION")
+
+            return conversation_id, repo_id
         except SQLAlchemyError:
             await self.db.rollback()
             raise
 
-    async def validate_operation(self, user_id: UUID, conversation_id: UUID) -> bool:
+    async def validate_operation(
+        self, user_id: UUID, conversation_id: UUID
+    ) -> tuple[UUID, UUID]:
         try:
-            chat_id = await self.db.scalar(
-                select(Conversation.chat_id).where(
-                    Conversation.conversation_id == conversation_id
+            stmt = (
+                select(UserRepo.repo_id, Conversation.conversation_id)
+                .select_from(Conversation)
+                .join(Chats, Chats.chat_id == Conversation.chat_id)
+                .join(UserRepo, UserRepo.user_repo_id == Chats.user_repo_id)
+                .where(
+                    Conversation.conversation_id == conversation_id,
+                    UserRepo.user_id == user_id,
                 )
             )
 
-            user_repo_id = await self.db.scalar(
-                select(Chats.user_repo_id).where(Chats.chat_id == chat_id)
-            )
+            result = await self.db.execute(stmt)
+            row = result.one_or_none()
 
-            check = await self.db.scalar(
-                select(1).where(
-                    UserRepo.user_id == user_id, UserRepo.user_repo_id == user_repo_id
-                )
-            )
+            if row is None:
+                raise NotFoundError("CONVERSATION NOT FOUND OR USER NOT AUTHORIZED")
 
-            if check:
-                return True
-            else:
-                return False
+            return tuple(row)
 
         except Exception as e:
             logger.exception("UNABLE TO VALIDATE THE USER, ERROR %s", e)
             raise ServerError(message="INTERNAL SERVER ERROR")
 
-    async def get_autherization_stmt(self, user_id: UUID, conversation_id: UUID):
+    async def load_conversation(
+        self, user_id: UUID, chat_id: UUID, limit: int = 10, offset: int = 0
+    ):
         try:
-            chat_id = await self.db.scalar(
-                select(Conversation.chat_id).where(
-                    Conversation.conversation_id == conversation_id
+            # await self._get_owned_room(user_id, chat_id)
+
+            stmt = (
+                select(
+                    Conversation.conversation_id,
+                    Conversation.query,
+                    Conversation.response,
+                    Conversation.models,
+                    Conversation.tool,
+                    Conversation.error,
+                    Conversation.chunks_used,
+                    Conversation.status,
                 )
+                .join(Chats, Chats.chat_id == Conversation.chat_id)
+                .join(UserRepo, UserRepo.user_repo_id == Chats.user_repo_id)
+                .where(Conversation.chat_id == chat_id, UserRepo.user_id == user_id)
+                .order_by(Conversation.created_at.desc())
+                .limit(limit)
+                .offset(offset)
             )
-        except SQLAlchemyError:
-            logger.exception("UNABLE TO GET THE CHAT_ID FOR THE CONVERATION")
 
-        if not chat_id:
-            raise ValidationError(message="CHAT DOES NOT EXIST", status=404)
+            response = await self.db.execute(stmt)
+            conversation = response.mappings().all()
 
+            if conversation is None:
+                raise NotFoundError("CONVERSATION NOT FOUND OR CHAT NOT OWNED BY USER")
+
+            return {
+                "success": True,
+                "status": 200,
+                "message": "CONVERSATION LOADED SUCCESSFULLY",
+                "data": conversation,
+            }
+
+        except SQLAlchemyError as exc:
+            await self.db.rollback()
+            raise exc
+
+    async def get_autherization_stmt(self, user_id: UUID, conversation_id: UUID):
         return (
             select(1)
-            .select_from(Chats)
+            .select_from(Conversation)
+            .join(Chats, Chats.chat_id == Conversation.chat_id)
             .join(UserRepo, UserRepo.user_repo_id == Chats.user_repo_id)
             .where(
-                Chats.chat_id == chat_id,
+                Conversation.conversation_id == conversation_id,
                 UserRepo.user_id == user_id,
             )
             .exists()
@@ -126,6 +192,8 @@ class Chat:
         user_id: UUID,
         conversation_id: UUID,
         response: str,
+        query: str | None = None,
+        model: str | None = None,
         tool: list[dict] | None = None,
         error_info: dict | None = None,
     ) -> None:
@@ -133,10 +201,38 @@ class Chat:
         try:
             autherization = await self.get_autherization_stmt(user_id, conversation_id)
 
+            values = {
+                "response": response,
+                "tool": tool,
+                "error": error_info,
+            }
+
+            where_clause = [
+                Conversation.conversation_id == conversation_id,
+                autherization,
+            ]
+
+            if query is not None:
+                values["query"] = query
+                latest_conv_id = (
+                    select(Conversation.conversation_id)
+                    .where(
+                        Conversation.conversation_id == conversation_id,
+                        autherization,
+                    )
+                    .order_by(Conversation.created_at.desc())
+                    .limit(1)
+                    .scalar_subquery()
+                )
+                where_clause.append(Conversation.conversation_id == latest_conv_id)
+
+            if model is not None:
+                values["model"] = model
+
             stmt = (
                 update(Conversation)
-                .where(Conversation.conversation_id == conversation_id, autherization)
-                .values(response=response, tool=tool, error=error_info)
+                .where(*where_clause)
+                .values(values)
                 .returning(Conversation.conversation_id)
             )
 
@@ -384,13 +480,33 @@ class Chat:
         history: list[dict] | None = None,
     ) -> list:
         retry_count = 0
+        model_change_count = 0
 
-        while retry_count < 3:
+        model = await self.fallback.get_active_model(model_type=ModelType.TITLE_ACTIVE)
+        if model is None:
+            model = self.fallback.next_model(
+                count=model_change_count, is_anonymous=False, is_title=True
+            )
+            if model is not None:
+                await self.fallback.set_active_model(
+                    model_name=model, model_type=ModelType.TITLE_ACTIVE
+                )
+
+            if model is None:
+                raise ServerError(
+                    message="SYSTEM OVERLOADED, NO MORE REQUEST CAN BE GENERATED FOR TODAY.",
+                    status=503,
+                )
+
+        while retry_count < 7 and model is not None:
             retry_count += 1
 
             try:
                 rewriten_query = await self.retriver._rewrite_query(
-                    query=query, history=history, model=rewriting_model
+                    query=query,
+                    history=history,
+                    model=rewriting_model,
+                    api_key=env_config.EVALUATION_API_KEY,
                 )
 
                 ai_res_type = rewriten_query["type"]
@@ -402,6 +518,35 @@ class Chat:
                         logger.warning("[CHAT-RETRIVAL] REDUCIGN THE HISTORY SIZE")
                         history = history[retry_count:]
                         continue
+                    elif status_code == 429:
+                        data = rewriten_query["detail"]
+                        seconds = (
+                            data.get("wait_time", 600.0)
+                            if isinstance(data, dict)
+                            else 600.0
+                        )
+
+                        await self.fallback.down_a_model(
+                            model_name=model, second=int(seconds)
+                        )
+
+                        next_model = self.fallback.next_model(
+                            count=model_change_count, is_anonymous=False, is_title=True
+                        )
+                        model_change_count += 1
+
+                        if next_model is None:
+                            raise ServerError(
+                                message="SYSTEM OVERLOADED, NO MORE REQUEST CAN BE GENERATED FOR TODAY.",
+                                status=503,
+                            )
+
+                        model = next_model
+                        await self.fallback.set_active_model(
+                            model_name=model,
+                            model_type=(ModelType.TITLE_ACTIVE),
+                        )
+
                     else:
                         logger.exception(
                             "[CHAT-RETRIVAL] UNABLE TO REWRITE THE QUERY, STATUS_CODE %s, ERROR %s",
@@ -474,8 +619,15 @@ class Chat:
                 break
 
             elif event_type == "error":
+                detail = None
+                status_code = event["status_code"]
+                if status_code == 429:
+                    detail = {"wait_time": event.get("wait_seconds", 600.0)}
+
                 raise GenerationError(
-                    status_code=event["status_code"], message=event["content"]
+                    status_code=event["status_code"],
+                    message=event["content"],
+                    detail=detail,
                 )
 
             yield event
@@ -483,27 +635,66 @@ class Chat:
     async def chat(
         self,
         query: str,
-        model: str,
-        repo_id: UUID,
+        # model: str,
         chat_id: UUID,
         user_id: UUID,
+        is_anonymous: bool,
         stop_event: asyncio.Event,
+        conversation_id: UUID | None = None,
         top_chunk: int | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
-        conversation_id = await self.save_chat_to_db(
-            query=query, response="", model=model, chat_id=chat_id
-        )
+        model = await self.fallback.get_active_model(model_type=ModelType.ACTIVE)
+
+        if is_anonymous:
+            model = await self.fallback.get_active_model(
+                model_type=ModelType.ANON_ACTIVE
+            )
+
+        if model is None and not is_anonymous:
+            model = self.fallback.priority[0]
+
+        if model is None and is_anonymous:
+            model = next(
+                (
+                    model
+                    for model in self.fallback.priority
+                    if model.startswith("groq/")
+                ),
+                None,
+            )
+
+        if model is None:
+            raise ServerError(message="THE SYSTEM IS TEMPORARY DOWN")
+
+        if not conversation_id:
+            conversation_id, repo_id = await self.save_chat_to_db(
+                query=query, response="", model=model, chat_id=chat_id, user_id=user_id
+            )
+        else:
+            repo_id, _ = await self.validate_operation(
+                user_id=user_id, conversation_id=conversation_id
+            )
+            await self.update_chat(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                response="",
+                query=query,
+                model=model,
+            )
+
         complete_response: list[str] = []
         tools: list[dict[str, str]] = []
         retrieved_content: list[Mapping[str, Any]] = []
         error_info: dict[str, Any] | None = None
 
         try:
-            history = await self.fetch_chat_history(
-                chat_id=chat_id, conversation_id=conversation_id, user_id=user_id
-            )
-
             gen_model_provider = model.split("/", 1)[0]
+            history = await self.fetch_chat_history(
+                chat_id=chat_id,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                limit=4 if not gen_model_provider == "groq" else 1,
+            )
 
             if top_chunk is None or top_chunk < 3:
                 top_chunk = self._set_top_chunks(gen_model_provider)
@@ -516,14 +707,28 @@ class Chat:
             )
 
             context = await self.context_formatter(retrieved_content, repo_id)
+            converted_his = [str(his) for his in history]
+            token_cost = await self.rate_limiter.count_token(
+                user_prompt=query, history=converted_his, retrived_content=context
+            )
 
             messages = self.generator.generate_chat_content(
                 user_message=query, retrived_content=context, history=history
             )
 
             try:
+                await self.rate_limiter.validate_request(
+                    user_id=user_id, is_annoymous=is_anonymous, cost=token_cost
+                )
+            except HTTPError:
+                raise
+            except Exception:
+                raise ServerError(message="INTERNAL SERVER ERROR")
+
+            try:
                 retry_count = 0
                 least_chunks = 4
+                model_change_count = 0
                 while retry_count < 3:
                     try:
                         async for event in self.generate_response(
@@ -570,6 +775,39 @@ class Chat:
                             tools.clear()
                             continue
 
+                        if err.status_code == 429:
+                            data = err.detail
+                            seconds = (
+                                data.get("wait_time", 600.0)
+                                if isinstance(data, dict)
+                                else 600.0
+                            )
+
+                            await self.fallback.down_a_model(
+                                model_name=model, second=int(seconds)
+                            )
+
+                            next_model = self.fallback.next_model(
+                                count=model_change_count, is_anonymous=is_anonymous
+                            )
+                            model_change_count += 1
+
+                            if next_model is None:
+                                raise ServerError(
+                                    message="SYSTEM OVERLOADED, NO MORE REQUEST CAN BE GENERATED FOR TODAY.",
+                                    status=503,
+                                )
+
+                            model = next_model
+                            await self.fallback.set_active_model(
+                                model_name=model,
+                                model_type=(
+                                    ModelType.ANON_ACTIVE
+                                    if is_anonymous
+                                    else ModelType.ACTIVE
+                                ),
+                            )
+
                         error_info = {
                             "type": "generation_error",
                             "status_code": err.status_code,
@@ -582,7 +820,7 @@ class Chat:
 
             except asyncio.CancelledError:
                 raise
-            
+
         except Exception as exc:
             if error_info is None:
                 error_info = {"type": type(exc).__name__, "message": str(exc)}
