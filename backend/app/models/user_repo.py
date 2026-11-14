@@ -5,10 +5,12 @@ from typing import TYPE_CHECKING
 from datetime import datetime
 import uuid
 
+
 if TYPE_CHECKING:
     from app.models.repository import Repository
     from app.models.auth_user import AuthUser
     from app.models.chats import Chats
+    from app.models.pinned_chats import PinnedChat
 
 
 class UserRepo(Base):
@@ -43,4 +45,7 @@ class UserRepo(Base):
 
     chats: Mapped[list["Chats"]] = relationship(
         "Chats", back_populates="users", cascade="all, delete-orphan"
+    )
+    pinned_chats: Mapped[list["PinnedChat"]] = relationship(
+        "PinnedChat", back_populates="user_repo"
     )

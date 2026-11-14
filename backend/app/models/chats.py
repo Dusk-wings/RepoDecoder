@@ -10,12 +10,15 @@ if TYPE_CHECKING:
     from app.models.repository import Repository
     from app.models.conversation import Conversation
     from app.models.user_repo import UserRepo
+    from app.models.pinned_chats import PinnedChat
 
 
 class Chats(Base):
     __tablename__ = "chat"
 
-    chat_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    chat_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
 
     user_repo_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("user_repo.user_repo_id", ondelete="CASCADE")
@@ -23,6 +26,8 @@ class Chats(Base):
 
     chat_name: Mapped[str] = mapped_column(VARCHAR(150))
     named_by_user: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -33,6 +38,9 @@ class Chats(Base):
         "UserRepo",
         back_populates="chats",
     )
+    pinned_chats: Mapped[list["PinnedChat"]] = relationship(
+        "PinnedChat", back_populates="chat", cascade="all, delete-orphan"
+    )
     conversation: Mapped[list["Conversation"]] = relationship(
-        "Conversation", back_populates="chat"
+        "Conversation", back_populates="chat", cascade="all, delete-orphan"
     )
