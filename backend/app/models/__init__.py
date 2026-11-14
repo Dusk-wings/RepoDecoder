@@ -11,3 +11,5 @@ from app.models.chats import Chats
 from app.models.conversation import Conversation
 from app.models.chat_soruces import ChatSources
 from app.models.auth_user import AuthUser
+from app.models.pinned_chats import PinnedChat
+from app.models.user_profile import UserProfile
