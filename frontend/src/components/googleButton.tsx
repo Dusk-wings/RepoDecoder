@@ -2,15 +2,21 @@
 
 import React from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "./button";
+import { Button } from "./ui/button";
 import { GoogleLogoIcon } from "@phosphor-icons/react";
-import { Spinner } from "./spinner";
+import { Spinner } from "./ui/spinner";
 
-export default function GoogleButton() {
+interface Props {
+  disableActions: () => void;
+  disabled: boolean;
+}
+
+export default function GoogleButton({ disableActions, disabled }: Props) {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
   async function GoogleAuth() {
+    disableActions();
     setError("");
     setLoading(true);
 
@@ -28,19 +34,30 @@ export default function GoogleButton() {
       setError("Unable to continue with Google. Please try again.");
     }
 
-    setLoading(false);
+    // setLoading(false);
   }
 
   return (
     <span className="flex flex-col gap-1">
       {error != "" && <p className="text-xs text-error-color">* {error} *</p>}
-      <Button onClick={GoogleAuth} disabled={loading}>
-        <span>
-          <GoogleLogoIcon size={32} color="#403f3f" weight="fill" />
-        </span>
+      <Button
+        onClick={GoogleAuth}
+        disabled={loading || disabled}
+        variant="outline"
+        className="p-4 flex gap-2"
+      >
+        {!loading && (
+          <span>
+            <GoogleLogoIcon
+              size={28}
+              // color={theme == "dark" ? "#ebfff2" : "#403f3f"}
+              weight="fill"
+            />
+          </span>
+        )}
         <p>
           {loading ? (
-            <span>
+            <span className="flex flex-row gap-2 justify-center items-center">
               <Spinner />
               <span>Processing ...</span>
             </span>
