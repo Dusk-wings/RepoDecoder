@@ -1,24 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-
 export async function GET(request: Request) {
-    const url = new URL(request.url)
+  const url = new URL(request.url);
 
-    const code = url.searchParams.get('code')
+  const code = url.searchParams.get("code");
 
-    const requestedNext = url.searchParams.get('next') ?? '/'
+  const requestedNext = url.searchParams.get("next") ?? "/";
 
-    const next = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/"
+  const next =
+    requestedNext.startsWith("/") && !requestedNext.startsWith("//")
+      ? requestedNext
+      : "/";
 
-    if (code) {
-        const supabase = await createClient()
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
+    console.log("temp data: \n",next, requestedNext, url.origin, code);
 
-        if (!error) {
-            return NextResponse.redirect(new URL(next, url.origin))
-        }
+  if (code) {
+    const supabase = await createClient();
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
+    console.log("exchangeCodeForSession", { error, data });
+    if (!error) {
+      return NextResponse.redirect(new URL(next, url.origin));
     }
+  }
 
-    return NextResponse.redirect(new URL('/login?error=oauth', url.origin))
+  return NextResponse.redirect(new URL("/login?error=oauth", url.origin));
 }

@@ -15,14 +15,16 @@ const minPasswordForValidation = z
   .min(8, { error: "Password must be at least 8 characters" })
   .max(40, { error: "Password can contain max of 40 characters" });
 
+export const emailSchema = z.email({ error: "Invalid email address" });
+
 export const loginValidator = z.object({
-  email: z.email(),
+  email: emailSchema,
   password: minPasswordForValidation,
 });
 
 export const registerValidation = z
   .object({
-    email: z.email(),
+    email: emailSchema,
     password: passwordForRegistration,
     confirmPassword: minPasswordForValidation,
   })
@@ -33,3 +35,4 @@ export const registerValidation = z
 
 export type RegistrationValidation = z.infer<typeof registerValidation>;
 export type LoginValidation = z.infer<typeof loginValidator>;
+export type EmailValidation = z.infer<typeof emailSchema>;
